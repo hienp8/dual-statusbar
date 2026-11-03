@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory android:title="Chung">
+        <SwitchPreferenceCompat android:key="enabled" android:title="Bật module" android:defaultValue="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Thanh trạng thái 2 dòng">
+        <SwitchPreferenceCompat android:key="dual_enabled" android:title="Bật chế độ 2 dòng"
+            android:summary="Chiều cao thanh đổi cần khởi động lại máy để vùng nội dung ứng dụng khớp" android:defaultValue="true" />
+        <SeekBarPreference android:key="bar_height_dp" android:title="Chiều cao thanh (dp)"
+            app:min="24" android:max="80" app:showSeekBarValue="true" android:defaultValue="44" />
+        <ListPreference android:key="pos_clock" android:title="Vị trí đồng hồ số"
+            android:entries="@array/pos_entries_def" android:entryValues="@array/pos_values_def"
+            android:defaultValue="0" app:useSimpleSummaryProvider="true" />
+        <ListPreference android:key="pos_notif" android:title="Vị trí biểu tượng thông báo"
+            android:entries="@array/pos_entries_def" android:entryValues="@array/pos_values_def"
+            android:defaultValue="6" app:useSimpleSummaryProvider="true" />
+        <ListPreference android:key="pos_icons" android:title="Vị trí biểu tượng hệ thống + pin"
+            android:entries="@array/pos_entries_def" android:entryValues="@array/pos_values_def"
+            android:defaultValue="5" app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Hình nền thanh trạng thái">
+        <SwitchPreferenceCompat android:key="bg_enabled" android:title="Dùng hình nền" android:defaultValue="true" />
+        <Preference android:key="pick_bg" android:title="Chọn ảnh nền" android:summary="PNG/WebP có nền trong suốt càng tốt" />
+        <Preference android:key="clear_bg" android:title="Xoá ảnh nền" />
+        <ListPreference android:key="bg_scale" android:title="Cách hiển thị"
+            android:entries="@array/scale_entries" android:entryValues="@array/scale_values"
+            android:defaultValue="0" app:useSimpleSummaryProvider="true" />
+        <SeekBarPreference android:key="bg_alpha" android:title="Độ mờ (%)"
+            app:min="0" android:max="100" app:showSeekBarValue="true" android:defaultValue="100" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Đồng hồ analog">
+        <SwitchPreferenceCompat android:key="analog_enabled" android:title="Hiện đồng hồ analog" android:defaultValue="true" />
+        <ListPreference android:key="analog_pos" android:title="Vị trí"
+            android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
+            android:defaultValue="4" app:useSimpleSummaryProvider="true" />
+        <SeekBarPreference android:key="analog_size" android:title="Kích thước (dp)"
+            app:min="12" android:max="64" app:showSeekBarValue="true" android:defaultValue="28" />
+        <SeekBarPreference android:key="analog_dx" android:title="Dịch ngang (dp)"
+            app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
+        <SeekBarPreference android:key="analog_dy" android:title="Dịch dọc (dp)"
+            app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
+        <SwitchPreferenceCompat android:key="analog_seconds" android:title="Kim giây" android:defaultValue="true" />
+        <SwitchPreferenceCompat android:key="analog_hide_digital" android:title="Ẩn đồng hồ số" android:defaultValue="false" />
+        <ListPreference android:key="analog_color" android:title="Màu kim mặc định (khi không có ảnh kim)"
+            android:entries="@array/color_entries" android:entryValues="@array/color_values"
+            android:defaultValue="#FFFFFFFF" app:useSimpleSummaryProvider="true" />
+        <Preference android:key="pick_dial" android:title="Chọn ảnh mặt đồng hồ" />
+        <Preference android:key="clear_dial" android:title="Xoá ảnh mặt đồng hồ" />
+        <Preference android:key="pick_hour" android:title="Chọn ảnh kim giờ"
+            android:summary="Ảnh vuông cùng cỡ mặt đồng hồ, kim hướng lên 12 giờ, tâm ảnh = trục quay" />
+        <Preference android:key="clear_hour" android:title="Xoá ảnh kim giờ" />
+        <Preference android:key="pick_minute" android:title="Chọn ảnh kim phút" />
+        <Preference android:key="clear_minute" android:title="Xoá ảnh kim phút" />
+        <Preference android:key="pick_second" android:title="Chọn ảnh kim giây" />
+        <Preference android:key="clear_second" android:title="Xoá ảnh kim giây" />
+    </PreferenceCategory>
+</PreferenceScreen>

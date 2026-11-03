@@ -1,0 +1,37 @@
+<resources>
+    <array name="xposed_scope">
+        <item>com.android.systemui</item>
+        <item>android</item>
+    </array>
+    <string-array name="pos_entries">
+        <string>Trái – trên</string><string>Giữa – trên</string><string>Phải – trên</string>
+        <string>Trái – giữa</string><string>Giữa – giữa</string><string>Phải – giữa</string>
+        <string>Trái – dưới</string><string>Giữa – dưới</string><string>Phải – dưới</string>
+    </string-array>
+    <string-array name="pos_values">
+        <item>0</item><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item>
+    </string-array>
+    <string-array name="pos_entries_def">
+        <string>Mặc định (không di chuyển)</string>
+        <string>Trái – trên</string><string>Giữa – trên</string><string>Phải – trên</string>
+        <string>Trái – giữa</string><string>Giữa – giữa</string><string>Phải – giữa</string>
+        <string>Trái – dưới</string><string>Giữa – dưới</string><string>Phải – dưới</string>
+    </string-array>
+    <string-array name="pos_values_def">
+        <item>-1</item>
+        <item>0</item><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item>
+    </string-array>
+    <string-array name="scale_entries">
+        <string>Kéo giãn vừa thanh</string>
+        <string>Phóng to lấp đầy (cắt bớt)</string>
+        <string>Vừa chiều cao, căn giữa</string>
+        <string>Lặp ngang (theo chiều cao)</string>
+    </string-array>
+    <string-array name="scale_values"><item>0</item><item>1</item><item>2</item><item>3</item></string-array>
+    <string-array name="color_entries">
+        <string>Trắng</string><string>Đen</string><string>Đỏ</string><string>Vàng</string>
+    </string-array>
+    <string-array name="color_values">
+        <item>#FFFFFFFF</item><item>#FF000000</item><item>#FFE53935</item><item>#FFFFC107</item>
+    </string-array>
+</resources>
