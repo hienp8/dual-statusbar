@@ -9,10 +9,15 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
+import android.graphics.Insets;
+import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowInsets;
+import android.view.WindowManager;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -40,6 +45,7 @@ public final class SysUiHook {
         ClassLoader cl = lpp.classLoader;
         HeightHook.install(cl);
         hookResources();
+        hookWindow(cl);
 
         Class<?> c = XposedHelpers.findClassIfExists(
                 "com.android.systemui.statusbar.phone.PhoneStatusBarView", cl);
@@ -135,6 +141,78 @@ public final class SysUiHook {
                     });
         } catch (Throwable t) {
             XposedBridge.log(TAG + "hookResources: " + t);
+        }
+    }
+
+    // ------------------------------------------------------------------ cửa sổ status bar
+
+    private static final Map<View, Integer> ORIG_WIN_H = Collections.synchronizedMap(new WeakHashMap<View, Integer>());
+    private static final Map<Object, Object> ORIG_INS = Collections.synchronizedMap(new IdentityHashMap<Object, Object>());
+
+    /** Ép chiều cao cửa sổ status bar mỗi khi SystemUI add/update (Samsung tự cập nhật lại lp). */
+    private static void hookWindow(ClassLoader cl) {
+        try {
+            Class<?> g = XposedHelpers.findClassIfExists("android.view.WindowManagerGlobal", cl);
+            if (g == null) { XposedBridge.log(TAG + "WindowManagerGlobal not found"); return; }
+            XC_MethodHook h = new XC_MethodHook() {
+                @Override protected void beforeHookedMethod(MethodHookParam p) {
+                    try {
+                        if (p.args.length >= 2 && p.args[0] instanceof View
+                                && p.args[1] instanceof ViewGroup.LayoutParams)
+                            adjustWindow((View) p.args[0], (ViewGroup.LayoutParams) p.args[1]);
+                    } catch (Throwable ignored) {}
+                }
+            };
+            XposedBridge.hookAllMethods(g, "addView", h);
+            XposedBridge.hookAllMethods(g, "updateViewLayout", h);
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + "hookWindow: " + t);
+        }
+    }
+
+    static void adjustWindow(View v, ViewGroup.LayoutParams lp) {
+        if (!(lp instanceof WindowManager.LayoutParams)) return;
+        WindowManager.LayoutParams w = (WindowManager.LayoutParams) lp;
+        if (w.type != WindowManager.LayoutParams.TYPE_STATUS_BAR) return;
+        if (!v.getClass().getName().contains("StatusBarWindow")) return;
+        synchronized (ORIG_WIN_H) {
+            if (!ORIG_WIN_H.containsKey(v)) {
+                ORIG_WIN_H.put(v, w.height);
+                XposedBridge.log(TAG + "status bar window: " + v.getClass().getName() + " h=" + w.height);
+            }
+        }
+        int px = HeightHook.targetPx;
+        if (px > 0) {
+            w.height = px;
+            fixInsets(w, px);
+        } else if (px == 0) {
+            Integer o = ORIG_WIN_H.get(v);
+            if (o != null) w.height = o;
+            fixInsets(w, 0);
+        }
+    }
+
+    /** Cập nhật kích thước inset mà cửa sổ status bar cung cấp cho hệ thống (nếu có). */
+    private static void fixInsets(WindowManager.LayoutParams w, int px) {
+        try {
+            Object arr = XposedHelpers.getObjectField(w, "providedInsets");
+            if (arr == null) return;
+            int n = java.lang.reflect.Array.getLength(arr);
+            for (int i = 0; i < n; i++) {
+                Object p = java.lang.reflect.Array.get(arr, i);
+                int type = (Integer) XposedHelpers.callMethod(p, "getType");
+                if ((type & WindowInsets.Type.statusBars()) == 0) continue;
+                synchronized (ORIG_INS) {
+                    if (!ORIG_INS.containsKey(p)) ORIG_INS.put(p, XposedHelpers.callMethod(p, "getInsetsSize"));
+                }
+                Insets o = (Insets) ORIG_INS.get(p);
+                Insets ni = px > 0
+                        ? Insets.of(o == null ? 0 : o.left, px, o == null ? 0 : o.right, o == null ? 0 : o.bottom)
+                        : o;
+                if (ni != null) XposedHelpers.callMethod(p, "setInsetsSize", ni);
+            }
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + "fixInsets: " + t);
         }
     }
 }

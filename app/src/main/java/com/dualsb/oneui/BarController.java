@@ -1,6 +1,17 @@
 package com.dualsb.oneui;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.BatteryManager;
+import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
+import android.telephony.TelephonyManager;
+import android.util.TypedValue;
+import android.view.WindowManager;
+import android.widget.TextView;
+import java.util.List;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -47,6 +58,18 @@ final class BarController {
     private View clock, clockBox, notif, sysGroup;
     private FrameLayout overlay;
     private AnalogClockView analog;
+    private TextView label;
+    private int labelMode;
+    private String labelText = "";
+    private BatteryLineDrawable batLine;
+    private int batLevel = 100;
+    private boolean batCharging;
+    private final BroadcastReceiver rcv = new BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) {
+            if (Intent.ACTION_BATTERY_CHANGED.equals(i.getAction())) readBattery(i);
+            else refreshLabel();
+        }
+    };
 
     private int heightPx;
     private final int[] cells = {-1, -1, -1};
@@ -80,6 +103,16 @@ final class BarController {
         }
         XposedBridge.log(TAG + "controller: contents=" + (contents != null) + " clock=" + (clock != null)
                 + " clockBox=" + (clockBox != null) + " notif=" + (notif != null) + " sys=" + (sysGroup != null));
+
+        try {
+            IntentFilter f = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+            f.addAction("android.intent.action.SERVICE_STATE");
+            f.addAction("android.intent.action.SIM_STATE_CHANGED");
+            Intent sticky = ctx.registerReceiver(rcv, f, Context.RECEIVER_NOT_EXPORTED);
+            if (sticky != null) readBattery(sticky);
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + "registerReceiver: " + t);
+        }
 
         root.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
             @Override public void onGlobalLayout() { onLayout(); }
@@ -118,6 +151,8 @@ final class BarController {
             if (lp.height != want) { lp.height = want; root.setLayoutParams(lp); }
         }
 
+        pushWindow();
+
         // vị trí 3 nhóm view
         cells[0] = dual ? Config.getInt(b, Config.POS_CLOCK) : -1;
         cells[1] = dual ? Config.getInt(b, Config.POS_NOTIF) : -1;
@@ -129,31 +164,55 @@ final class BarController {
                 ? new BgDrawable(bg, Config.getInt(b, Config.BG_SCALE), Config.getInt(b, Config.BG_ALPHA))
                 : origBg);
 
-        // đồng hồ analog
+        // lớp phủ: đồng hồ analog + nhãn
         boolean an = enabled && Config.getBool(b, Config.AN_ENABLED);
-        if (an) ensureOverlay();
+        labelMode = enabled ? Config.getInt(b, Config.LABEL_MODE) : 0;
+        labelText = Config.getString(b, Config.LABEL_TEXT);
+        boolean lb = labelMode != 0;
+        if (an || lb) ensureOverlay();
         if (overlay != null) {
+            overlay.setVisibility(an || lb ? View.VISIBLE : View.GONE);
+            analog.setVisibility(an ? View.VISIBLE : View.GONE);
+            label.setVisibility(lb ? View.VISIBLE : View.GONE);
+            int[] hg = {Gravity.START, Gravity.CENTER_HORIZONTAL, Gravity.END};
+            int[] vg = {Gravity.TOP, Gravity.CENTER_VERTICAL, Gravity.BOTTOM};
             if (an) {
                 int size = Math.round(Config.getInt(b, Config.AN_SIZE) * d);
                 int pos = Math.max(0, Math.min(8, Config.getInt(b, Config.AN_POS)));
-                int[] hg = {Gravity.START, Gravity.CENTER_HORIZONTAL, Gravity.END};
-                int[] vg = {Gravity.TOP, Gravity.CENTER_VERTICAL, Gravity.BOTTOM};
                 FrameLayout.LayoutParams alp = new FrameLayout.LayoutParams(size, size);
                 alp.gravity = hg[pos % 3] | vg[pos / 3];
                 analog.setLayoutParams(alp);
                 analog.setTranslationX(Config.getInt(b, Config.AN_DX) * d);
                 analog.setTranslationY(Config.getInt(b, Config.AN_DY) * d);
-                int col;
-                try { col = Color.parseColor(Config.getString(b, Config.AN_COLOR)); }
-                catch (Exception e) { col = Color.WHITE; }
                 analog.configure(img("dial", b), img("hour", b), img("minute", b), img("second", b),
-                        Config.getBool(b, Config.AN_SEC), col);
-                overlay.setVisibility(View.VISIBLE);
-            } else {
-                overlay.setVisibility(View.GONE);
+                        Config.getBool(b, Config.AN_SEC), parseColor(Config.getString(b, Config.AN_COLOR), Color.WHITE));
+            }
+            if (lb) {
+                int pos = Math.max(0, Math.min(8, Config.getInt(b, Config.LABEL_POS)));
+                FrameLayout.LayoutParams llp = new FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                llp.gravity = hg[pos % 3] | vg[pos / 3];
+                label.setLayoutParams(llp);
+                label.setTextSize(TypedValue.COMPLEX_UNIT_SP, Config.getInt(b, Config.LABEL_SIZE));
+                label.setTextColor(parseColor(Config.getString(b, Config.LABEL_COLOR), Color.WHITE));
+                label.setTranslationX(Config.getInt(b, Config.LABEL_DX) * d);
+                label.setTranslationY(Config.getInt(b, Config.LABEL_DY) * d);
+                refreshLabel();
             }
         }
         if (clock != null) clock.setAlpha(an && Config.getBool(b, Config.AN_HIDE) ? 0f : 1f);
+
+        // đường pin ở viền dưới (foreground của root)
+        if (enabled && Config.getBool(b, Config.BAT_LINE)) {
+            if (batLine == null) batLine = new BatteryLineDrawable();
+            batLine.configure(Math.max(1, Math.round(Config.getInt(b, Config.BAT_H) * d)),
+                    parseColor(Config.getString(b, Config.BAT_COL), 0xFFE53935),
+                    parseColor(Config.getString(b, Config.BAT_COL_CHG), 0xFF4CAF50));
+            batLine.setState(batLevel, batCharging);
+            root.setForeground(batLine);
+        } else {
+            root.setForeground(null);
+        }
 
         root.requestLayout();
         relayout();
@@ -166,6 +225,11 @@ final class BarController {
         overlay.setClipToPadding(false);
         analog = new AnalogClockView(ctx);
         overlay.addView(analog, new FrameLayout.LayoutParams(1, 1));
+        label = new TextView(ctx);
+        label.setSingleLine(true);
+        label.setIncludeFontPadding(false);
+        overlay.addView(label, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         contents.addView(overlay, new RelativeLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         noClip(contents);
@@ -185,6 +249,67 @@ final class BarController {
         }
         imgCache.put(name, new Object[]{stamp, bm});
         return bm;
+    }
+
+    // ------------------------------------------------------------------ pin, nhãn, cửa sổ
+
+    private static int parseColor(String s, int def) {
+        try { return Color.parseColor(s); } catch (Exception e) { return def; }
+    }
+
+    private void readBattery(Intent i) {
+        int level = i.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+        int scale = i.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
+        if (level >= 0 && scale > 0) batLevel = level * 100 / scale;
+        batCharging = i.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0;
+        if (batLine != null) batLine.setState(batLevel, batCharging);
+    }
+
+    private void refreshLabel() {
+        if (label == null) return;
+        label.setText(labelMode == 1 ? carrierName() : labelMode == 2 ? labelText : "");
+    }
+
+    private String carrierName() {
+        try {
+            SubscriptionManager sm = (SubscriptionManager) ctx.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
+            List<SubscriptionInfo> l = sm.getActiveSubscriptionInfoList();
+            if (l != null) {
+                StringBuilder sb = new StringBuilder();
+                for (SubscriptionInfo si : l) {
+                    CharSequence n = si.getCarrierName();
+                    if (n != null && n.length() > 0) {
+                        if (sb.length() > 0) sb.append(" | ");
+                        sb.append(n);
+                    }
+                }
+                if (sb.length() > 0) return sb.toString();
+            }
+        } catch (Throwable ignored) {}
+        try {
+            TelephonyManager tm = (TelephonyManager) ctx.getSystemService(Context.TELEPHONY_SERVICE);
+            String n = tm.getNetworkOperatorName();
+            if (n == null || n.isEmpty()) n = tm.getSimOperatorName();
+            return n == null ? "" : n;
+        } catch (Throwable t) {
+            return "";
+        }
+    }
+
+    /** Cập nhật chiều cao của chính cửa sổ status bar (hook WindowManagerGlobal sẽ chỉnh lp). */
+    private void pushWindow() {
+        try {
+            View rv = root.getRootView();
+            ViewGroup.LayoutParams wl = rv.getLayoutParams();
+            XposedBridge.log(TAG + "window root=" + rv.getClass().getName() + " lp="
+                    + (wl == null ? "null" : wl.getClass().getSimpleName()) + " h=" + (wl == null ? -1 : wl.height));
+            if (wl instanceof WindowManager.LayoutParams && rv.isAttachedToWindow()) {
+                SysUiHook.adjustWindow(rv, wl);
+                ctx.getSystemService(WindowManager.class).updateViewLayout(rv, wl);
+            }
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + "pushWindow: " + Log.getStackTraceString(t));
+        }
     }
 
     // ------------------------------------------------------------------ bố cục lưới 3x3

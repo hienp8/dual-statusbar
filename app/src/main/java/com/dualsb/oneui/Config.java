@@ -29,6 +29,17 @@ public final class Config {
     public static final String AN_SEC = "analog_seconds";
     public static final String AN_HIDE = "analog_hide_digital";
     public static final String AN_COLOR = "analog_color";
+    public static final String BAT_LINE = "battery_line";
+    public static final String BAT_H = "battery_line_h";
+    public static final String BAT_COL = "battery_color_normal";
+    public static final String BAT_COL_CHG = "battery_color_charging";
+    public static final String LABEL_MODE = "label_mode";
+    public static final String LABEL_TEXT = "label_text";
+    public static final String LABEL_POS = "label_pos";
+    public static final String LABEL_SIZE = "label_size";
+    public static final String LABEL_DX = "label_dx";
+    public static final String LABEL_DY = "label_dy";
+    public static final String LABEL_COLOR = "label_color";
 
     public static int getInt(Bundle b, String key) {
         Object o = b == null ? null : b.get(key);
@@ -45,6 +56,9 @@ public final class Config {
             case BG_ALPHA: return 100;
             case AN_POS: return 4;
             case AN_SIZE: return 28;
+            case BAT_H: return 2;
+            case LABEL_POS: return 1;
+            case LABEL_SIZE: return 11;
             default: return 0;
         }
     }
@@ -60,6 +74,12 @@ public final class Config {
 
     public static String getString(Bundle b, String key) {
         Object o = b == null ? null : b.get(key);
-        return o instanceof String ? (String) o : "#FFFFFFFF";
+        if (o instanceof String) return (String) o;
+        switch (key) {
+            case BAT_COL: return "#FFE53935";
+            case BAT_COL_CHG: return "#FF4CAF50";
+            case LABEL_TEXT: return "";
+            default: return "#FFFFFFFF";
+        }
     }
 }

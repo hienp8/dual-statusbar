@@ -29,9 +29,13 @@
     </string-array>
     <string-array name="scale_values"><item>0</item><item>1</item><item>2</item><item>3</item></string-array>
     <string-array name="color_entries">
-        <item>Trắng</item><item>Đen</item><item>Đỏ</item><item>Vàng</item>
+        <item>Trắng</item><item>Đen</item><item>Đỏ</item><item>Vàng</item><item>Xanh lá</item><item>Xanh dương</item><item>Cam</item>
     </string-array>
     <string-array name="color_values">
-        <item>#FFFFFFFF</item><item>#FF000000</item><item>#FFE53935</item><item>#FFFFC107</item>
+        <item>#FFFFFFFF</item><item>#FF000000</item><item>#FFE53935</item><item>#FFFFC107</item><item>#FF4CAF50</item><item>#FF2196F3</item><item>#FFFF9800</item>
     </string-array>
+    <string-array name="label_mode_entries">
+        <item>Tắt</item><item>Tên nhà mạng (tự động)</item><item>Chữ tuỳ chỉnh</item>
+    </string-array>
+    <string-array name="label_mode_values"><item>0</item><item>1</item><item>2</item></string-array>
 </resources>

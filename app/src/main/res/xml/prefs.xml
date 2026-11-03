@@ -59,4 +59,37 @@
         <Preference android:key="pick_second" android:title="Chọn ảnh kim giây" />
         <Preference android:key="clear_second" android:title="Xoá ảnh kim giây" />
     </PreferenceCategory>
+
+    <PreferenceCategory android:title="Đường pin ở viền dưới">
+        <SwitchPreferenceCompat android:key="battery_line" android:title="Hiện đường pin"
+            android:summary="Đường kẻ ngang căn giữa, dài theo % pin" android:defaultValue="true" />
+        <SeekBarPreference android:key="battery_line_h" android:title="Độ dày (dp)"
+            app:min="1" android:max="8" app:showSeekBarValue="true" android:defaultValue="2" />
+        <ListPreference android:key="battery_color_normal" android:title="Màu thường"
+            android:entries="@array/color_entries" android:entryValues="@array/color_values"
+            android:defaultValue="#FFE53935" app:useSimpleSummaryProvider="true" />
+        <ListPreference android:key="battery_color_charging" android:title="Màu khi sạc"
+            android:entries="@array/color_entries" android:entryValues="@array/color_values"
+            android:defaultValue="#FF4CAF50" app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Tên nhà mạng / chữ tuỳ chỉnh">
+        <ListPreference android:key="label_mode" android:title="Chế độ"
+            android:entries="@array/label_mode_entries" android:entryValues="@array/label_mode_values"
+            android:defaultValue="0" app:useSimpleSummaryProvider="true" />
+        <EditTextPreference android:key="label_text" android:title="Chữ tuỳ chỉnh"
+            android:defaultValue="" app:useSimpleSummaryProvider="true" />
+        <ListPreference android:key="label_pos" android:title="Vị trí"
+            android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
+            android:defaultValue="1" app:useSimpleSummaryProvider="true" />
+        <SeekBarPreference android:key="label_size" android:title="Cỡ chữ (sp)"
+            app:min="6" android:max="20" app:showSeekBarValue="true" android:defaultValue="11" />
+        <SeekBarPreference android:key="label_dx" android:title="Dịch ngang (dp)"
+            app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
+        <SeekBarPreference android:key="label_dy" android:title="Dịch dọc (dp)"
+            app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
+        <ListPreference android:key="label_color" android:title="Màu chữ"
+            android:entries="@array/color_entries" android:entryValues="@array/color_values"
+            android:defaultValue="#FFFFFFFF" app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
 </PreferenceScreen>
