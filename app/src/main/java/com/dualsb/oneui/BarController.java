@@ -4,30 +4,35 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.os.BatteryManager;
-import android.telephony.SubscriptionInfo;
-import android.telephony.SubscriptionManager;
-import android.telephony.TelephonyManager;
-import android.util.TypedValue;
-import android.view.WindowManager;
-import android.widget.TextView;
-import java.util.List;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
+import android.os.PowerManager;
+import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
+import android.telephony.TelephonyManager;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
+import android.widget.TextClock;
+import android.widget.TextView;
 
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import de.robv.android.xposed.XposedBridge;
@@ -35,19 +40,21 @@ import de.robv.android.xposed.XposedBridge;
 /**
  * Điều khiển 1 PhoneStatusBarView.
  *
- * Cấu trúc One UI 7 (suy ra từ status_bar.xml bạn gửi):
+ * Cấu trúc One UI 7 (suy ra từ status_bar.xml):
  *   PhoneStatusBarView (root, vertical)
  *     ├─ ImageView notification_lights_out
  *     └─ RelativeLayout status_bar_contents
- *          ├─ IndicatorGardenMaxWidthFrameLayout  (trái: clock + notification icons)
- *          ├─ IndicatorGardenMaxWidthLinearLayout (giữa: cutout space)
- *          └─ IndicatorGardenMaxWidthLinearLayout (phải: system icons + pin)
- * Không reparent view nào (để controller của Samsung vẫn giữ tham chiếu đúng); chỉ dịch bằng
- * translationX/Y vào lưới 3x3 của status_bar_contents.
+ *          ├─ trái: clock + notification icons
+ *          ├─ giữa: cutout space
+ *          └─ phải: system icons + pin
+ * Không reparent view gốc; chỉ dịch bằng translationX/Y vào lưới 3x3, và thêm một lớp phủ
+ * (overlay) chứa: đồng hồ analog, nhãn, giờ, ngày (dương/âm), pin dạng vòng.
  */
 final class BarController {
     private static final String PKG = "com.android.systemui";
     private static final String TAG = SysUiHook.TAG;
+    private static final int[] HG = {Gravity.START, Gravity.CENTER_HORIZONTAL, Gravity.END};
+    private static final int[] VG = {Gravity.TOP, Gravity.CENTER_VERTICAL, Gravity.BOTTOM};
 
     final ViewGroup root;
     private final Context ctx;
@@ -55,25 +62,38 @@ final class BarController {
     private final int origHeight;
 
     private RelativeLayout contents;
-    private View clock, clockBox, notif, sysGroup;
+    private View clock, clockBox, notif, sysGroup, stockBattery;
+
     private FrameLayout overlay;
     private AnalogClockView analog;
     private TextView label;
+    private TextClock timeClock;
+    private TextView dateText;
+    private BatteryRingView ring;
+
     private int labelMode;
     private String labelText = "";
+    private boolean dateOn;
+    private int dateMode, lunarFmt;
+    private String dateFmt = "EEE, d MMM", dateCustom = "";
+    private boolean lunarNewline;
+
     private BatteryLineDrawable batLine;
     private int batLevel = 100;
-    private boolean batCharging;
-    private final BroadcastReceiver rcv = new BroadcastReceiver() {
-        @Override public void onReceive(Context c, Intent i) {
-            if (Intent.ACTION_BATTERY_CHANGED.equals(i.getAction())) readBattery(i);
-            else refreshLabel();
-        }
-    };
+    private boolean batCharging, batSaver;
 
     private int heightPx;
     private final int[] cells = {-1, -1, -1};
     private final Map<String, Object[]> imgCache = new HashMap<>();
+
+    private final BroadcastReceiver rcv = new BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) {
+            String a = i.getAction();
+            if (Intent.ACTION_BATTERY_CHANGED.equals(a)) readBattery(i);
+            else if ("android.os.action.POWER_SAVE_MODE_CHANGED".equals(a)) readPower();
+            else { refreshLabel(); refreshDate(); }
+        }
+    };
 
     BarController(ViewGroup root) {
         this.root = root;
@@ -99,17 +119,26 @@ final class BarController {
             sysGroup = byName("system_icon_area");
             if (sysGroup == null && contents.getChildCount() >= 3)
                 sysGroup = contents.getChildAt(contents.getChildCount() - 1);
+            stockBattery = byName("battery");
+            if (stockBattery == null) stockBattery = findByClass(contents, "BatteryMeterView");
             noClip(contents);
         }
         XposedBridge.log(TAG + "controller: contents=" + (contents != null) + " clock=" + (clock != null)
-                + " clockBox=" + (clockBox != null) + " notif=" + (notif != null) + " sys=" + (sysGroup != null));
+                + " clockBox=" + (clockBox != null) + " notif=" + (notif != null)
+                + " sys=" + (sysGroup != null) + " battery=" + (stockBattery != null));
 
         try {
             IntentFilter f = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+            f.addAction("android.os.action.POWER_SAVE_MODE_CHANGED");
             f.addAction("android.intent.action.SERVICE_STATE");
             f.addAction("android.intent.action.SIM_STATE_CHANGED");
+            f.addAction(Intent.ACTION_TIME_TICK);
+            f.addAction(Intent.ACTION_DATE_CHANGED);
+            f.addAction(Intent.ACTION_TIME_CHANGED);
+            f.addAction(Intent.ACTION_TIMEZONE_CHANGED);
             Intent sticky = ctx.registerReceiver(rcv, f, Context.RECEIVER_NOT_EXPORTED);
             if (sticky != null) readBattery(sticky);
+            readPower();
         } catch (Throwable t) {
             XposedBridge.log(TAG + "registerReceiver: " + t);
         }
@@ -122,6 +151,18 @@ final class BarController {
     private View byName(String name) {
         int id = root.getResources().getIdentifier(name, "id", PKG);
         return id == 0 ? null : root.findViewById(id);
+    }
+
+    private static View findByClass(View v, String part) {
+        if (v.getClass().getName().contains(part)) return v;
+        if (v instanceof ViewGroup) {
+            ViewGroup g = (ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) {
+                View r = findByClass(g.getChildAt(i), part);
+                if (r != null) return r;
+            }
+        }
+        return null;
     }
 
     private void noClip(View from) {
@@ -150,10 +191,9 @@ final class BarController {
             int want = heightPx > 0 ? heightPx : origHeight;
             if (lp.height != want) { lp.height = want; root.setLayoutParams(lp); }
         }
-
         pushWindow();
 
-        // vị trí 3 nhóm view
+        // vị trí 3 nhóm view gốc
         cells[0] = dual ? Config.getInt(b, Config.POS_CLOCK) : -1;
         cells[1] = dual ? Config.getInt(b, Config.POS_NOTIF) : -1;
         cells[2] = dual ? Config.getInt(b, Config.POS_ICONS) : -1;
@@ -164,43 +204,84 @@ final class BarController {
                 ? new BgDrawable(bg, Config.getInt(b, Config.BG_SCALE), Config.getInt(b, Config.BG_ALPHA))
                 : origBg);
 
-        // lớp phủ: đồng hồ analog + nhãn
+        // các lớp phủ
         boolean an = enabled && Config.getBool(b, Config.AN_ENABLED);
         labelMode = enabled ? Config.getInt(b, Config.LABEL_MODE) : 0;
         labelText = Config.getString(b, Config.LABEL_TEXT);
         boolean lb = labelMode != 0;
-        if (an || lb) ensureOverlay();
+        boolean tm = enabled && Config.getBool(b, Config.TIME_ENABLED);
+        dateOn = enabled && Config.getBool(b, Config.DATE_ENABLED);
+        boolean rg = enabled && Config.getBool(b, Config.RING_ENABLED);
+
+        if (an || lb || tm || dateOn || rg) ensureOverlay();
         if (overlay != null) {
-            overlay.setVisibility(an || lb ? View.VISIBLE : View.GONE);
+            overlay.setVisibility(an || lb || tm || dateOn || rg ? View.VISIBLE : View.GONE);
             analog.setVisibility(an ? View.VISIBLE : View.GONE);
             label.setVisibility(lb ? View.VISIBLE : View.GONE);
-            int[] hg = {Gravity.START, Gravity.CENTER_HORIZONTAL, Gravity.END};
-            int[] vg = {Gravity.TOP, Gravity.CENTER_VERTICAL, Gravity.BOTTOM};
+            timeClock.setVisibility(tm ? View.VISIBLE : View.GONE);
+            dateText.setVisibility(dateOn ? View.VISIBLE : View.GONE);
+            ring.setVisibility(rg ? View.VISIBLE : View.GONE);
+
             if (an) {
                 int size = Math.round(Config.getInt(b, Config.AN_SIZE) * d);
-                int pos = Math.max(0, Math.min(8, Config.getInt(b, Config.AN_POS)));
-                FrameLayout.LayoutParams alp = new FrameLayout.LayoutParams(size, size);
-                alp.gravity = hg[pos % 3] | vg[pos / 3];
-                analog.setLayoutParams(alp);
-                analog.setTranslationX(Config.getInt(b, Config.AN_DX) * d);
-                analog.setTranslationY(Config.getInt(b, Config.AN_DY) * d);
+                put(analog, Config.getInt(b, Config.AN_POS), size, size,
+                        Config.getInt(b, Config.AN_DX) * d, Config.getInt(b, Config.AN_DY) * d);
                 analog.configure(img("dial", b), img("hour", b), img("minute", b), img("second", b),
                         Config.getBool(b, Config.AN_SEC), parseColor(Config.getString(b, Config.AN_COLOR), Color.WHITE));
             }
             if (lb) {
-                int pos = Math.max(0, Math.min(8, Config.getInt(b, Config.LABEL_POS)));
-                FrameLayout.LayoutParams llp = new FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                llp.gravity = hg[pos % 3] | vg[pos / 3];
-                label.setLayoutParams(llp);
+                put(label, Config.getInt(b, Config.LABEL_POS), -2, -2,
+                        Config.getInt(b, Config.LABEL_DX) * d, Config.getInt(b, Config.LABEL_DY) * d);
                 label.setTextSize(TypedValue.COMPLEX_UNIT_SP, Config.getInt(b, Config.LABEL_SIZE));
                 label.setTextColor(parseColor(Config.getString(b, Config.LABEL_COLOR), Color.WHITE));
-                label.setTranslationX(Config.getInt(b, Config.LABEL_DX) * d);
-                label.setTranslationY(Config.getInt(b, Config.LABEL_DY) * d);
                 refreshLabel();
             }
+            if (tm) {
+                put(timeClock, Config.getInt(b, Config.TIME_POS), -2, -2,
+                        Config.getInt(b, Config.TIME_DX) * d, Config.getInt(b, Config.TIME_DY) * d);
+                String fmt = Config.getString(b, Config.TIME_FMT);
+                timeClock.setFormat24Hour(fmt);
+                timeClock.setFormat12Hour(fmt);
+                timeClock.setTextSize(TypedValue.COMPLEX_UNIT_SP, Config.getInt(b, Config.TIME_SIZE));
+                timeClock.setTextColor(parseColor(Config.getString(b, Config.TIME_COLOR), Color.WHITE));
+            }
+            if (dateOn) {
+                dateMode = Config.getInt(b, Config.DATE_MODE);
+                dateFmt = Config.getString(b, Config.DATE_FMT);
+                dateCustom = Config.getString(b, Config.DATE_CUSTOM);
+                lunarFmt = Config.getInt(b, Config.LUNAR_FMT);
+                lunarNewline = Config.getBool(b, Config.LUNAR_NEWLINE);
+                put(dateText, Config.getInt(b, Config.DATE_POS), -2, -2,
+                        Config.getInt(b, Config.DATE_DX) * d, Config.getInt(b, Config.DATE_DY) * d);
+                dateText.setTextSize(TypedValue.COMPLEX_UNIT_SP, Config.getInt(b, Config.DATE_SIZE));
+                dateText.setTextColor(parseColor(Config.getString(b, Config.DATE_COLOR), Color.WHITE));
+                boolean two = lunarNewline && dateMode == 2;
+                dateText.setSingleLine(!two);
+                if (two) dateText.setMaxLines(2);
+                dateText.setGravity(Gravity.CENTER_HORIZONTAL);
+                refreshDate();
+            }
+            if (rg) {
+                int size = Math.round(Config.getInt(b, Config.RING_SIZE) * d);
+                put(ring, Config.getInt(b, Config.RING_POS), size, size,
+                        Config.getInt(b, Config.RING_DX) * d, Config.getInt(b, Config.RING_DY) * d);
+                ring.configure(Math.max(1f, Config.getInt(b, Config.RING_STROKE) * d),
+                        Config.getBool(b, Config.RING_PERCENT),
+                        parseColor(Config.getString(b, Config.RING_COLOR), Color.WHITE),
+                        parseColor(Config.getString(b, Config.RING_COL_CHG), 0xFF4CAF50),
+                        parseColor(Config.getString(b, Config.RING_COL_SAVER), 0xFFFFC107),
+                        parseColor(Config.getString(b, Config.RING_COL_LOW), 0xFFE53935),
+                        Config.getInt(b, Config.RING_LOW_LEVEL));
+                ring.setState(batLevel, batCharging, batSaver);
+            }
         }
-        if (clock != null) clock.setAlpha(an && Config.getBool(b, Config.AN_HIDE) ? 0f : 1f);
+
+        // ẩn đồng hồ số gốc / pin gốc (chỉ làm mờ, không đổi cấu trúc view của Samsung)
+        boolean hideClock = enabled && (Config.getBool(b, Config.DIG_REPLACE)
+                || (an && Config.getBool(b, Config.AN_HIDE)));
+        if (clock != null) clock.setAlpha(hideClock ? 0f : 1f);
+        if (stockBattery != null)
+            stockBattery.setAlpha(rg && Config.getBool(b, Config.RING_HIDE_STOCK) ? 0f : 1f);
 
         // đường pin ở viền dưới (foreground của root)
         if (enabled && Config.getBool(b, Config.BAT_LINE)) {
@@ -218,21 +299,43 @@ final class BarController {
         relayout();
     }
 
+    private TextView newText() {
+        TextView t = new TextView(ctx);
+        t.setSingleLine(true);
+        t.setIncludeFontPadding(false);
+        return t;
+    }
+
     private void ensureOverlay() {
         if (overlay != null || contents == null) return;
         overlay = new FrameLayout(ctx);
         overlay.setClipChildren(false);
         overlay.setClipToPadding(false);
         analog = new AnalogClockView(ctx);
+        label = newText();
+        timeClock = new TextClock(ctx);
+        timeClock.setSingleLine(true);
+        timeClock.setIncludeFontPadding(false);
+        dateText = newText();
+        ring = new BatteryRingView(ctx);
         overlay.addView(analog, new FrameLayout.LayoutParams(1, 1));
-        label = new TextView(ctx);
-        label.setSingleLine(true);
-        label.setIncludeFontPadding(false);
-        overlay.addView(label, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        overlay.addView(label, new FrameLayout.LayoutParams(-2, -2));
+        overlay.addView(timeClock, new FrameLayout.LayoutParams(-2, -2));
+        overlay.addView(dateText, new FrameLayout.LayoutParams(-2, -2));
+        overlay.addView(ring, new FrameLayout.LayoutParams(1, 1));
         contents.addView(overlay, new RelativeLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         noClip(contents);
+    }
+
+    /** Đặt view vào ô pos (0..8) của overlay; w/h = -2 là wrap_content. */
+    private void put(View v, int pos, int w, int h, float dx, float dy) {
+        pos = Math.max(0, Math.min(8, pos));
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(w, h);
+        lp.gravity = HG[pos % 3] | VG[pos / 3];
+        v.setLayoutParams(lp);
+        v.setTranslationX(dx);
+        v.setTranslationY(dy);
     }
 
     private Bitmap img(String name, Bundle b) {
@@ -251,23 +354,60 @@ final class BarController {
         return bm;
     }
 
-    // ------------------------------------------------------------------ pin, nhãn, cửa sổ
-
     private static int parseColor(String s, int def) {
         try { return Color.parseColor(s); } catch (Exception e) { return def; }
     }
+
+    // ------------------------------------------------------------------ pin, nhãn, ngày, cửa sổ
 
     private void readBattery(Intent i) {
         int level = i.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
         int scale = i.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
         if (level >= 0 && scale > 0) batLevel = level * 100 / scale;
         batCharging = i.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0;
+        pushBattery();
+    }
+
+    private void readPower() {
+        try {
+            PowerManager pm = (PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
+            batSaver = pm != null && pm.isPowerSaveMode();
+        } catch (Throwable ignored) {}
+        pushBattery();
+    }
+
+    private void pushBattery() {
         if (batLine != null) batLine.setState(batLevel, batCharging);
+        if (ring != null) ring.setState(batLevel, batCharging, batSaver);
     }
 
     private void refreshLabel() {
         if (label == null) return;
         label.setText(labelMode == 1 ? carrierName() : labelMode == 2 ? labelText : "");
+    }
+
+    private void refreshDate() {
+        if (dateText == null || !dateOn) return;
+        Calendar cal = Calendar.getInstance();
+        String solar = null, lunar = null;
+        if (dateMode != 1) {
+            String pat = dateCustom == null || dateCustom.trim().isEmpty() ? dateFmt : dateCustom.trim();
+            try {
+                Locale loc = ctx.getResources().getConfiguration().getLocales().get(0);
+                solar = new SimpleDateFormat(pat, loc).format(cal.getTime());
+            } catch (Exception e) {
+                solar = pat;
+            }
+        }
+        if (dateMode != 0) {
+            int[] l = LunarCalendar.solarToLunar(cal.get(Calendar.DAY_OF_MONTH),
+                    cal.get(Calendar.MONTH) + 1, cal.get(Calendar.YEAR));
+            lunar = LunarCalendar.format(l, lunarFmt);
+        }
+        String out = solar != null && lunar != null
+                ? solar + (lunarNewline ? "\n" : "  ·  ") + lunar
+                : solar != null ? solar : lunar;
+        dateText.setText(out);
     }
 
     private String carrierName() {
@@ -360,7 +500,6 @@ final class BarController {
         v.setTranslationY(cy - vcy);
     }
 
-    /** Vị trí (left, top) của v trong hệ toạ độ của anc, theo layout (không tính translation của v). */
     private static int[] offsetIn(View anc, View v, boolean withTranslation) {
         float x = 0, y = 0;
         View c = v;
@@ -372,7 +511,6 @@ final class BarController {
         return new int[]{Math.round(x), Math.round(y)};
     }
 
-    /** Khoảng [minX, maxX] mà các view lá đang hiển thị chiếm trong top (có tính translationX của icon). */
     private static void extent(View top, View v, int[] mm) {
         if (v.getVisibility() != View.VISIBLE || v.getAlpha() == 0f) return;
         if (v instanceof ViewGroup && ((ViewGroup) v).getChildCount() > 0) {

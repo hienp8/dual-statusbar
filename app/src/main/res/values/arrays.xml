@@ -38,4 +38,41 @@
         <item>Tắt</item><item>Tên nhà mạng (tự động)</item><item>Chữ tuỳ chỉnh</item>
     </string-array>
     <string-array name="label_mode_values"><item>0</item><item>1</item><item>2</item></string-array>
+    <string-array name="time_fmt_entries">
+        <item>24 giờ – 15:02</item>
+        <item>24 giờ, có giây – 15:02:30</item>
+        <item>24 giờ, không số 0 đầu – 9:05</item>
+        <item>12 giờ – 3:02 PM</item>
+        <item>12 giờ, có giây – 3:02:30 PM</item>
+        <item>12 giờ, đủ 2 chữ số – 03:02 PM</item>
+    </string-array>
+    <string-array name="time_fmt_values">
+        <item>HH:mm</item><item>HH:mm:ss</item><item>H:mm</item>
+        <item>h:mm a</item><item>h:mm:ss a</item><item>hh:mm a</item>
+    </string-array>
+    <string-array name="date_mode_entries">
+        <item>Dương lịch</item><item>Âm lịch</item><item>Dương lịch + âm lịch</item>
+    </string-array>
+    <string-array name="date_mode_values"><item>0</item><item>1</item><item>2</item></string-array>
+    <string-array name="date_fmt_entries">
+        <item>Thứ, ngày tháng (theo ngôn ngữ máy)</item>
+        <item>03/11/2026</item>
+        <item>3/11/2026</item>
+        <item>03/11</item>
+        <item>03-11-2026</item>
+        <item>2026-11-03</item>
+        <item>Thứ, 03/11/2026</item>
+        <item>Thứ đầy đủ, 3 tháng 11 2026</item>
+    </string-array>
+    <string-array name="date_fmt_values">
+        <item>EEE, d MMM</item><item>dd/MM/yyyy</item><item>d/M/yyyy</item><item>dd/MM</item>
+        <item>dd-MM-yyyy</item><item>yyyy-MM-dd</item><item>EEE, dd/MM/yyyy</item><item>EEEE, d MMMM yyyy</item>
+    </string-array>
+    <string-array name="lunar_fmt_entries">
+        <item>25/9 ÂL</item>
+        <item>25/9/2026 ÂL</item>
+        <item>Ngày 25 tháng 9 âm lịch</item>
+        <item>25/9 năm Bính Ngọ (Can Chi)</item>
+    </string-array>
+    <string-array name="lunar_fmt_values"><item>0</item><item>1</item><item>2</item><item>3</item></string-array>
 </resources>

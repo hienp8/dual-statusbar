@@ -41,6 +41,42 @@ public final class Config {
     public static final String LABEL_DY = "label_dy";
     public static final String LABEL_COLOR = "label_color";
 
+    // đồng hồ số tách giờ / ngày
+    public static final String DIG_REPLACE = "digital_replace";
+    public static final String TIME_ENABLED = "time_enabled";
+    public static final String TIME_FMT = "time_format";
+    public static final String TIME_POS = "time_pos";
+    public static final String TIME_SIZE = "time_size";
+    public static final String TIME_DX = "time_dx";
+    public static final String TIME_DY = "time_dy";
+    public static final String TIME_COLOR = "time_color";
+    public static final String DATE_ENABLED = "date_enabled";
+    public static final String DATE_MODE = "date_mode";          // 0 dương, 1 âm, 2 cả hai
+    public static final String DATE_FMT = "date_format";
+    public static final String DATE_CUSTOM = "date_custom";
+    public static final String LUNAR_FMT = "lunar_format";
+    public static final String LUNAR_NEWLINE = "lunar_newline";
+    public static final String DATE_POS = "date_pos";
+    public static final String DATE_SIZE = "date_size";
+    public static final String DATE_DX = "date_dx";
+    public static final String DATE_DY = "date_dy";
+    public static final String DATE_COLOR = "date_color";
+
+    // pin dạng vòng
+    public static final String RING_ENABLED = "ring_enabled";
+    public static final String RING_POS = "ring_pos";
+    public static final String RING_SIZE = "ring_size";
+    public static final String RING_STROKE = "ring_stroke";
+    public static final String RING_PERCENT = "ring_percent";
+    public static final String RING_HIDE_STOCK = "ring_hide_stock";
+    public static final String RING_DX = "ring_dx";
+    public static final String RING_DY = "ring_dy";
+    public static final String RING_COLOR = "ring_color";
+    public static final String RING_COL_CHG = "ring_color_charging";
+    public static final String RING_COL_SAVER = "ring_color_saver";
+    public static final String RING_COL_LOW = "ring_color_low";
+    public static final String RING_LOW_LEVEL = "ring_low_level";
+
     public static int getInt(Bundle b, String key) {
         Object o = b == null ? null : b.get(key);
         if (o instanceof Integer) return (Integer) o;
@@ -52,13 +88,20 @@ public final class Config {
             case POS_CLOCK: return 0;
             case POS_NOTIF: return 6;
             case POS_ICONS: return 5;
-            case BG_SCALE: return 0;
             case BG_ALPHA: return 100;
             case AN_POS: return 4;
             case AN_SIZE: return 28;
             case BAT_H: return 2;
             case LABEL_POS: return 1;
             case LABEL_SIZE: return 11;
+            case TIME_POS: return 0;
+            case TIME_SIZE: return 14;
+            case DATE_POS: return 6;
+            case DATE_SIZE: return 11;
+            case RING_POS: return 5;
+            case RING_SIZE: return 22;
+            case RING_STROKE: return 2;
+            case RING_LOW_LEVEL: return 20;
             default: return 0;
         }
     }
@@ -67,8 +110,15 @@ public final class Config {
         Object o = b == null ? null : b.get(key);
         if (o instanceof Boolean) return (Boolean) o;
         switch (key) {
-            case AN_HIDE: return false;
-            default: return true;
+            case AN_HIDE:
+            case DIG_REPLACE:
+            case RING_ENABLED:
+            case LUNAR_NEWLINE:
+            case TIME_ENABLED:
+            case DATE_ENABLED:
+                return false;
+            default:
+                return true;
         }
     }
 
@@ -79,6 +129,12 @@ public final class Config {
             case BAT_COL: return "#FFE53935";
             case BAT_COL_CHG: return "#FF4CAF50";
             case LABEL_TEXT: return "";
+            case TIME_FMT: return "HH:mm";
+            case DATE_FMT: return "EEE, d MMM";
+            case DATE_CUSTOM: return "";
+            case RING_COL_CHG: return "#FF4CAF50";
+            case RING_COL_SAVER: return "#FFFFC107";
+            case RING_COL_LOW: return "#FFE53935";
             default: return "#FFFFFFFF";
         }
     }
