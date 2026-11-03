@@ -15,6 +15,7 @@ dependencies {
     compileOnly 'de.robv.android.xposed:api:82'
     // Nếu repo api.xposed.info lỗi: tải XposedBridgeAPI-82.jar vào app/libs và dùng dòng dưới thay cho dòng trên
     // compileOnly fileTree(dir: 'libs', include: ['*.jar'])
+    implementation platform('org.jetbrains.kotlin:kotlin-bom:1.8.22')
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.preference:preference:1.2.1'
 }
