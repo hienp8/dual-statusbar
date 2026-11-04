@@ -1,12 +1,9 @@
 # DualLine SB (One UI 7) – module LSPosed
 
 Thanh trạng thái 2 dòng + hình nền tuỳ chọn + đồng hồ analog (tuỳ chọn ảnh mặt/kim, vị trí mặc định ở giữa)
-cho Samsung One UI 7 (Android 15). Không dùng smali/overlay như repo gốc; hook bằng Xposed API ở runtime.
-
-## Build
-**Cách 1 – GitHub Actions (không cần cài gì):** đẩy thư mục này lên một repo GitHub → tab *Actions* → *build-apk* → tải artifact `DualLineSB-OneUI7-apk`.
-**Cách 2 – Android Studio:** mở thư mục, Sync, `Build > Build APK(s)` (JDK 17).
-Nếu repo `https://api.xposed.info/` không tải được: tải `XposedBridgeAPI-82.jar` vào `app/libs/` và đổi dòng `compileOnly` trong `app/build.gradle` (đã có sẵn dòng comment).
+cho Samsung One UI 7 (Android 15).
+Thanh pin phía dưới statusbar
+Thay thế biểu tượng pin bằng vòng tròn...
 
 ## Cài đặt
 1. Cài APK, **mở app một lần** (để tạo cấu hình mặc định).
