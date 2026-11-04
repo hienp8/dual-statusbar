@@ -18,6 +18,7 @@ public final class Config {
     public static final String POS_CLOCK = "pos_clock";
     public static final String POS_NOTIF = "pos_notif";
     public static final String POS_ICONS = "pos_icons";
+    public static final String POS_CHIP = "pos_chip";            // -2 = theo thông báo, -1 = không di chuyển
     public static final String BG_ENABLED = "bg_enabled";
     public static final String BG_SCALE = "bg_scale";
     public static final String BG_ALPHA = "bg_alpha";
@@ -33,6 +34,9 @@ public final class Config {
     public static final String BAT_H = "battery_line_h";
     public static final String BAT_COL = "battery_color_normal";
     public static final String BAT_COL_CHG = "battery_color_charging";
+    public static final String BAT_ANIM = "battery_anim";
+    public static final String BAT_SPEED = "battery_anim_speed";
+    public static final String BAT_GAP = "battery_anim_gap";
     public static final String LABEL_MODE = "label_mode";
     public static final String LABEL_TEXT = "label_text";
     public static final String LABEL_POS = "label_pos";
@@ -76,6 +80,9 @@ public final class Config {
     public static final String RING_COL_SAVER = "ring_color_saver";
     public static final String RING_COL_LOW = "ring_color_low";
     public static final String RING_LOW_LEVEL = "ring_low_level";
+    public static final String RING_WIFI = "ring_show_wifi";
+    public static final String RING_SIGNAL = "ring_show_signal";
+    public static final String RING_SIG_STYLE = "ring_signal_style";   // 0 thanh, 1 chấm
 
     public static int getInt(Bundle b, String key) {
         Object o = b == null ? null : b.get(key);
@@ -88,6 +95,9 @@ public final class Config {
             case POS_CLOCK: return 0;
             case POS_NOTIF: return 6;
             case POS_ICONS: return 5;
+            case POS_CHIP: return -2;
+            case BAT_SPEED: return 4;
+            case BAT_GAP: return 28;
             case BG_ALPHA: return 100;
             case AN_POS: return 4;
             case AN_SIZE: return 28;
@@ -135,6 +145,12 @@ public final class Config {
             case RING_COL_CHG: return "#FF4CAF50";
             case RING_COL_SAVER: return "#FFFFC107";
             case RING_COL_LOW: return "#FFE53935";
+            case TIME_COLOR:
+            case DATE_COLOR:
+            case LABEL_COLOR:
+            case RING_COLOR:
+            case AN_COLOR:
+                return "auto";            // theo màu chữ của hệ thống (đổi sáng/tối theo nền)
             default: return "#FFFFFFFF";
         }
     }

@@ -120,6 +120,7 @@ public final class LunarCalendar {
             case 1: return l[0] + "/" + m + "/" + l[2] + " ÂL";
             case 2: return "Ngày " + l[0] + " tháng " + l[1] + (l[3] == 1 ? " nhuận" : "") + " âm lịch";
             case 3: return l[0] + "/" + m + " năm " + canChiYear(l[2]);
+            case 4: return l[0] + "/" + m + " " + canChiYear(l[2]);
             default: return l[0] + "/" + m + " ÂL";
         }
     }

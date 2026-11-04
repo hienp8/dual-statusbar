@@ -50,6 +50,8 @@ public class AnalogClockView extends View {
         scheduleNext();
     }
 
+    public void setHandColor(int c) { color = c; invalidate(); }
+
     private void scheduleNext() {
         removeCallbacks(ticker);
         if (!attached || !screenOn) return;

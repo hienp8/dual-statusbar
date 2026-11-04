@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">DualLine SB (One UI 7)</string>
+    <string name="app_name">DualLine SB</string>
     <string name="xposed_desc">Thanh trạng thái 2 dòng, nền tuỳ chọn và đồng hồ analog cho One UI 7</string>
 </resources>

@@ -1,13 +1,33 @@
 plugins { id 'com.android.application' }
+
+def runNumber = (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+
 android {
     namespace 'com.dualsb.oneui'
     compileSdk 35
+
+    signingConfigs {
+        // Khoá cố định nằm trong repo: mọi bản build đều cùng chữ ký nên cài đè được, không cần gỡ app.
+        shared {
+            storeFile file('dualsb.p12')
+            storeType 'pkcs12'
+            storePassword 'dualsb123'
+            keyAlias 'dualsb'
+            keyPassword 'dualsb123'
+        }
+    }
+
     defaultConfig {
         applicationId 'com.dualsb.oneui'
         minSdk 34          // One UI 7 = Android 15
         targetSdk 34
-        versionCode 1
-        versionName '0.1'
+        // Tự tăng theo số lần build trên GitHub để luôn cài đè được bản cũ
+        versionCode runNumber + 100
+        versionName '0.2'
+    }
+    buildTypes {
+        debug { signingConfig signingConfigs.shared }
+        release { signingConfig signingConfigs.shared; minifyEnabled false }
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }

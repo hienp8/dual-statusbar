@@ -3,6 +3,17 @@ package com.dualsb.oneui;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Configuration;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
+import android.telephony.ServiceState;
+import android.telephony.SignalStrength;
+import android.telephony.TelephonyCallback;
+import android.view.ViewTreeObserver;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -22,6 +33,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
+import android.view.ViewStub;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
@@ -29,11 +41,14 @@ import android.widget.TextClock;
 import android.widget.TextView;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import de.robv.android.xposed.XposedBridge;
 
@@ -78,12 +93,19 @@ final class BarController {
     private String dateFmt = "EEE, d MMM", dateCustom = "";
     private boolean lunarNewline;
 
+    private Bundle cfg;
+    private int lastAuto;
+    private boolean netRegistered;
+    private int wifiLevel = -1, sigLevel = 0;
+    private boolean inService = true;
     private BatteryLineDrawable batLine;
     private int batLevel = 100;
     private boolean batCharging, batSaver;
 
     private int heightPx;
-    private final int[] cells = {-1, -1, -1};
+    private final int[] cells = {-1, -1, -1, -1};   // đồng hồ, thông báo, biểu tượng, Now Bar
+    private boolean dumped;
+    private String lastChips = "";
     private final Map<String, Object[]> imgCache = new HashMap<>();
 
     private final BroadcastReceiver rcv = new BroadcastReceiver() {
@@ -143,6 +165,16 @@ final class BarController {
             XposedBridge.log(TAG + "registerReceiver: " + t);
         }
 
+        root.getViewTreeObserver().addOnDrawListener(new ViewTreeObserver.OnDrawListener() {
+            @Override public void onDraw() {
+                int c = autoColor();
+                if (c != lastAuto) {
+                    lastAuto = c;
+                    root.post(new Runnable() { @Override public void run() { applyColors(); } });
+                }
+            }
+        });
+
         root.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
             @Override public void onGlobalLayout() { onLayout(); }
         });
@@ -180,6 +212,7 @@ final class BarController {
     // ------------------------------------------------------------------ áp cấu hình
 
     void apply(Bundle b) {
+        cfg = b;
         boolean enabled = Config.getBool(b, Config.ENABLED);
         boolean dual = enabled && Config.getBool(b, Config.DUAL);
         float d = ctx.getResources().getDisplayMetrics().density;
@@ -197,6 +230,7 @@ final class BarController {
         cells[0] = dual ? Config.getInt(b, Config.POS_CLOCK) : -1;
         cells[1] = dual ? Config.getInt(b, Config.POS_NOTIF) : -1;
         cells[2] = dual ? Config.getInt(b, Config.POS_ICONS) : -1;
+        cells[3] = dual ? Config.getInt(b, Config.POS_CHIP) : -1;
 
         // hình nền
         Bitmap bg = (enabled && Config.getBool(b, Config.BG_ENABLED)) ? img("bg", b) : null;
@@ -227,13 +261,13 @@ final class BarController {
                 put(analog, Config.getInt(b, Config.AN_POS), size, size,
                         Config.getInt(b, Config.AN_DX) * d, Config.getInt(b, Config.AN_DY) * d);
                 analog.configure(img("dial", b), img("hour", b), img("minute", b), img("second", b),
-                        Config.getBool(b, Config.AN_SEC), parseColor(Config.getString(b, Config.AN_COLOR), Color.WHITE));
+                        Config.getBool(b, Config.AN_SEC), colorOf(b, Config.AN_COLOR));
             }
             if (lb) {
                 put(label, Config.getInt(b, Config.LABEL_POS), -2, -2,
                         Config.getInt(b, Config.LABEL_DX) * d, Config.getInt(b, Config.LABEL_DY) * d);
                 label.setTextSize(TypedValue.COMPLEX_UNIT_SP, Config.getInt(b, Config.LABEL_SIZE));
-                label.setTextColor(parseColor(Config.getString(b, Config.LABEL_COLOR), Color.WHITE));
+                label.setTextColor(colorOf(b, Config.LABEL_COLOR));
                 refreshLabel();
             }
             if (tm) {
@@ -243,7 +277,7 @@ final class BarController {
                 timeClock.setFormat24Hour(fmt);
                 timeClock.setFormat12Hour(fmt);
                 timeClock.setTextSize(TypedValue.COMPLEX_UNIT_SP, Config.getInt(b, Config.TIME_SIZE));
-                timeClock.setTextColor(parseColor(Config.getString(b, Config.TIME_COLOR), Color.WHITE));
+                timeClock.setTextColor(colorOf(b, Config.TIME_COLOR));
             }
             if (dateOn) {
                 dateMode = Config.getInt(b, Config.DATE_MODE);
@@ -254,7 +288,7 @@ final class BarController {
                 put(dateText, Config.getInt(b, Config.DATE_POS), -2, -2,
                         Config.getInt(b, Config.DATE_DX) * d, Config.getInt(b, Config.DATE_DY) * d);
                 dateText.setTextSize(TypedValue.COMPLEX_UNIT_SP, Config.getInt(b, Config.DATE_SIZE));
-                dateText.setTextColor(parseColor(Config.getString(b, Config.DATE_COLOR), Color.WHITE));
+                dateText.setTextColor(colorOf(b, Config.DATE_COLOR));
                 boolean two = lunarNewline && dateMode == 2;
                 dateText.setSingleLine(!two);
                 if (two) dateText.setMaxLines(2);
@@ -263,16 +297,20 @@ final class BarController {
             }
             if (rg) {
                 int size = Math.round(Config.getInt(b, Config.RING_SIZE) * d);
-                put(ring, Config.getInt(b, Config.RING_POS), size, size,
+                put(ring, Config.getInt(b, Config.RING_POS), -2, size,
                         Config.getInt(b, Config.RING_DX) * d, Config.getInt(b, Config.RING_DY) * d);
                 ring.configure(Math.max(1f, Config.getInt(b, Config.RING_STROKE) * d),
                         Config.getBool(b, Config.RING_PERCENT),
-                        parseColor(Config.getString(b, Config.RING_COLOR), Color.WHITE),
+                        colorOf(b, Config.RING_COLOR),
                         parseColor(Config.getString(b, Config.RING_COL_CHG), 0xFF4CAF50),
                         parseColor(Config.getString(b, Config.RING_COL_SAVER), 0xFFFFC107),
                         parseColor(Config.getString(b, Config.RING_COL_LOW), 0xFFE53935),
-                        Config.getInt(b, Config.RING_LOW_LEVEL));
+                        Config.getInt(b, Config.RING_LOW_LEVEL),
+                        Config.getBool(b, Config.RING_WIFI), Config.getBool(b, Config.RING_SIGNAL),
+                        Config.getInt(b, Config.RING_SIG_STYLE));
                 ring.setState(batLevel, batCharging, batSaver);
+                if (Config.getBool(b, Config.RING_WIFI) || Config.getBool(b, Config.RING_SIGNAL)) ensureNet();
+                pushNet();
             }
         }
 
@@ -288,7 +326,10 @@ final class BarController {
             if (batLine == null) batLine = new BatteryLineDrawable();
             batLine.configure(Math.max(1, Math.round(Config.getInt(b, Config.BAT_H) * d)),
                     parseColor(Config.getString(b, Config.BAT_COL), 0xFFE53935),
-                    parseColor(Config.getString(b, Config.BAT_COL_CHG), 0xFF4CAF50));
+                    parseColor(Config.getString(b, Config.BAT_COL_CHG), 0xFF4CAF50),
+                    Config.getBool(b, Config.BAT_ANIM),
+                    Config.getInt(b, Config.BAT_SPEED) * 25f * d,
+                    Config.getInt(b, Config.BAT_GAP) * d);
             batLine.setState(batLevel, batCharging);
             root.setForeground(batLine);
         } else {
@@ -352,6 +393,82 @@ final class BarController {
         }
         imgCache.put(name, new Object[]{stamp, bm});
         return bm;
+    }
+
+    /** Màu chữ của hệ thống trên status bar (tự đổi sáng/tối theo nền). */
+    private int autoColor() {
+        if (clock instanceof TextView) {
+            int c = ((TextView) clock).getCurrentTextColor();
+            return 0xFF000000 | (c & 0x00FFFFFF);
+        }
+        boolean night = (ctx.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
+                == Configuration.UI_MODE_NIGHT_YES;
+        return night ? Color.WHITE : Color.BLACK;
+    }
+
+    private int colorOf(Bundle b, String key) {
+        String v = Config.getString(b, key);
+        return "auto".equals(v) ? autoColor() : parseColor(v, Color.WHITE);
+    }
+
+    /** Cập nhật lại các màu "tự động" khi hệ thống đổi màu chữ. */
+    private void applyColors() {
+        Bundle b = cfg;
+        if (b == null || overlay == null) return;
+        label.setTextColor(colorOf(b, Config.LABEL_COLOR));
+        timeClock.setTextColor(colorOf(b, Config.TIME_COLOR));
+        dateText.setTextColor(colorOf(b, Config.DATE_COLOR));
+        ring.setNormalColor(colorOf(b, Config.RING_COLOR));
+        analog.setHandColor(colorOf(b, Config.AN_COLOR));
+    }
+
+    // ---- Wi-Fi + sóng di động cho khối pin vòng
+    private void pushNet() {
+        if (ring != null) ring.setNet(inService ? sigLevel : 0, wifiLevel);
+    }
+
+    private void ensureNet() {
+        if (netRegistered) return;
+        netRegistered = true;
+        try {
+            ConnectivityManager cm = (ConnectivityManager) ctx.getSystemService(Context.CONNECTIVITY_SERVICE);
+            final WifiManager wm = (WifiManager) ctx.getSystemService(Context.WIFI_SERVICE);
+            cm.registerNetworkCallback(
+                    new NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI).build(),
+                    new ConnectivityManager.NetworkCallback() {
+                        @Override public void onCapabilitiesChanged(Network n, NetworkCapabilities caps) {
+                            Object ti = caps.getTransportInfo();
+                            if (ti instanceof WifiInfo) {
+                                int max = Math.max(1, wm.getMaxSignalLevel());
+                                wifiLevel = Math.min(4, wm.calculateSignalLevel(((WifiInfo) ti).getRssi()) * 4 / max);
+                                pushNet();
+                            }
+                        }
+                        @Override public void onLost(Network n) { wifiLevel = -1; pushNet(); }
+                    }, SysUiHook.UI);
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + "wifi callback: " + Log.getStackTraceString(t));
+        }
+        try {
+            TelephonyManager tm = (TelephonyManager) ctx.getSystemService(Context.TELEPHONY_SERVICE);
+            int sub = SubscriptionManager.getDefaultDataSubscriptionId();
+            if (sub != SubscriptionManager.INVALID_SUBSCRIPTION_ID) tm = tm.createForSubscriptionId(sub);
+            tm.registerTelephonyCallback(ctx.getMainExecutor(), new CellCb());
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + "cell callback: " + Log.getStackTraceString(t));
+        }
+    }
+
+    private final class CellCb extends TelephonyCallback implements
+            TelephonyCallback.SignalStrengthsListener, TelephonyCallback.ServiceStateListener {
+        @Override public void onSignalStrengthsChanged(SignalStrength s) {
+            sigLevel = Math.max(0, Math.min(4, s.getLevel()));
+            pushNet();
+        }
+        @Override public void onServiceStateChanged(ServiceState ss) {
+            inService = ss.getState() == ServiceState.STATE_IN_SERVICE;
+            pushNet();
+        }
     }
 
     private static int parseColor(String s, int def) {
@@ -462,42 +579,128 @@ final class BarController {
         relayout();
     }
 
-    private void relayout() {
-        if (contents == null) return;
-        int w = contents.getWidth(), h = contents.getHeight();
-        if (w == 0 || h == 0) return;
-        place(clockBox != null ? clockBox : clock, cells[0], false);
-        place(notif, cells[1], true);
-        place(sysGroup, cells[2], false);
+    private static final class Item {
+        final View v;
+        final int minX, w;
+        Item(View v, int minX, int w) { this.v = v; this.minX = minX; this.w = w; }
     }
 
-    /** cell = hàng*3 + cột (cột 0 trái/1 giữa/2 phải; hàng 0 trên/1 giữa/2 dưới). */
-    private void place(View v, int cell, boolean measureContent) {
-        if (v == null) return;
-        if (cell < 0 || cell > 8) { v.setTranslationX(0); v.setTranslationY(0); return; }
+    private static void reset(View v) { v.setTranslationX(0); v.setTranslationY(0); }
+
+    private void relayout() {
+        if (contents == null) return;
+        int W = contents.getWidth(), H = contents.getHeight();
+        if (W == 0 || H == 0) return;
+
+        List<Item> clockItems = new ArrayList<>(), sysItems = new ArrayList<>();
+        List<Item> notifItems = new ArrayList<>(), chipItems = new ArrayList<>();
+        View cv = clockBox != null ? clockBox : clock;
+        if (cv != null) clockItems.add(new Item(cv, 0, cv.getWidth()));
+        if (sysGroup != null) sysItems.add(new Item(sysGroup, 0, sysGroup.getWidth()));
+        if (notif != null) {
+            int[] mm = {Integer.MAX_VALUE, Integer.MIN_VALUE};
+            extent(notif, notif, mm);
+            if (mm[1] > mm[0]) notifItems.add(new Item(notif, mm[0], mm[1] - mm[0])); else reset(notif);
+        }
+        collectChips(chipItems);
+
+        placeRow(clockItems, cells[0]);
+        placeRow(sysItems, cells[2]);
+        int nc = cells[1];
+        int cc = cells[3] == -2 ? nc : cells[3];
+        if (nc >= 0 && cc == nc) {                       // Now Bar đi cùng nhóm thông báo: [Now Bar][icon thông báo]
+            List<Item> row = new ArrayList<>(chipItems);
+            row.addAll(notifItems);
+            placeRow(row, nc);
+        } else {
+            placeRow(notifItems, nc);
+            placeRow(chipItems, cc);
+        }
+    }
+
+    /** Xếp các view liên tiếp nhau vào ô cell (0..8); cell < 0 thì trả về vị trí gốc. */
+    private void placeRow(List<Item> items, int cell) {
+        if (items.isEmpty()) return;
+        if (cell < 0 || cell > 8) { for (Item it : items) reset(it.v); return; }
         int col = cell % 3, row = cell / 3;
         int W = contents.getWidth(), H = contents.getHeight();
         int pl = contents.getPaddingLeft(), pr = contents.getPaddingRight();
         int pt = contents.getPaddingTop(), pb = contents.getPaddingBottom();
+        int gap = Math.round(4 * ctx.getResources().getDisplayMetrics().density);
 
-        int[] off = offsetIn(contents, v, false);
-        int minX = 0, maxX = v.getWidth();
-        if (measureContent) {
-            int[] mm = {Integer.MAX_VALUE, Integer.MIN_VALUE};
-            extent(v, v, mm);
-            if (mm[1] <= mm[0]) { v.setTranslationX(0); v.setTranslationY(0); return; }
-            minX = mm[0]; maxX = mm[1];
-        }
-        int cw = maxX - minX;
-        float targetLeft = col == 0 ? pl : col == 1 ? pl + (W - pl - pr - cw) / 2f : W - pr - cw;
-        float tx = targetLeft - (off[0] + minX);
-
+        int total = gap * (items.size() - 1);
+        for (Item it : items) total += it.w;
+        float x = col == 0 ? pl : col == 1 ? pl + (W - pl - pr - total) / 2f : W - pr - total;
         float usableH = H - pt - pb;
         float cy = pt + usableH * (row == 0 ? 0.25f : row == 1 ? 0.5f : 0.75f);
-        float vcy = off[1] + v.getHeight() / 2f;
 
-        v.setTranslationX(tx);
-        v.setTranslationY(cy - vcy);
+        for (Item it : items) {
+            int[] off = offsetIn(contents, it.v, false);
+            it.v.setTranslationX(x - (off[0] + it.minX));
+            it.v.setTranslationY(cy - (off[1] + it.v.getHeight() / 2f));
+            x += it.w + gap;
+        }
+    }
+
+    // ---- Now Bar / chip hoạt động: các view anh em của vùng thông báo trong cột trái
+    private String idName(View v) {
+        int id = v.getId();
+        if (id == View.NO_ID) return "-";
+        try { return v.getResources().getResourceEntryName(id); }
+        catch (Throwable t) { return "0x" + Integer.toHexString(id); }
+    }
+
+    private void collectChips(List<Item> out) {
+        if (clockBox == null || !(clockBox.getParent() instanceof ViewGroup)) return;
+        ViewGroup left = (ViewGroup) clockBox.getParent();
+        if (!dumped && left.getWidth() > 0) {
+            dumped = true;
+            StringBuilder sb = new StringBuilder(TAG + "cột trái:");
+            dump(left, 0, sb);
+            XposedBridge.log(sb.toString());
+        }
+        Set<View> path = new HashSet<>();
+        View c = notif;
+        while (c != null && c != left) {
+            path.add(c);
+            c = c.getParent() instanceof View ? (View) c.getParent() : null;
+        }
+        if (c != left) path.clear();
+        scan(left, path, out);
+
+        StringBuilder sig = new StringBuilder();
+        for (Item it : out) sig.append(idName(it.v)).append('/').append(it.v.getClass().getSimpleName()).append(' ');
+        String s = sig.toString();
+        if (!s.equals(lastChips)) {
+            lastChips = s;
+            XposedBridge.log(TAG + "Now Bar/chip: " + (s.isEmpty() ? "(không có)" : s));
+        }
+    }
+
+    private void scan(ViewGroup parent, Set<View> path, List<Item> out) {
+        for (int i = 0; i < parent.getChildCount(); i++) {
+            View ch = parent.getChildAt(i);
+            if (ch == clockBox || ch == notif || ch instanceof ViewStub) continue;
+            if (path.contains(ch)) {                       // tổ tiên của vùng thông báo: tìm tiếp bên trong
+                if (ch instanceof ViewGroup) scan((ViewGroup) ch, path, out);
+                continue;
+            }
+            if (ch.getVisibility() != View.VISIBLE || ch.getWidth() <= 0 || ch.getAlpha() == 0f) continue;
+            String n = idName(ch).toLowerCase() + " " + ch.getClass().getSimpleName().toLowerCase();
+            if (n.contains("heads_up") || n.contains("headsup")) continue;
+            out.add(new Item(ch, 0, ch.getWidth()));
+        }
+    }
+
+    private void dump(View v, int depth, StringBuilder sb) {
+        sb.append("\n");
+        for (int i = 0; i < depth; i++) sb.append("  ");
+        sb.append(v.getClass().getSimpleName()).append('#').append(idName(v))
+                .append(" vis=").append(v.getVisibility()).append(" ").append(v.getWidth()).append('x').append(v.getHeight());
+        if (v instanceof ViewGroup && depth < 4) {
+            ViewGroup g = (ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) dump(g.getChildAt(i), depth + 1, sb);
+        }
     }
 
     private static int[] offsetIn(View anc, View v, boolean withTranslation) {

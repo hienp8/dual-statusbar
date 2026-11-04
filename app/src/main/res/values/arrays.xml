@@ -73,6 +73,28 @@
         <item>25/9/2026 ÂL</item>
         <item>Ngày 25 tháng 9 âm lịch</item>
         <item>25/9 năm Bính Ngọ (Can Chi)</item>
+        <item>25/9 Bính Ngọ (Can Chi, bỏ chữ năm)</item>
     </string-array>
-    <string-array name="lunar_fmt_values"><item>0</item><item>1</item><item>2</item><item>3</item></string-array>
+    <string-array name="lunar_fmt_values"><item>0</item><item>1</item><item>2</item><item>3</item><item>4</item></string-array>
+    <string-array name="color_auto_entries">
+        <item>Tự động (theo màu hệ thống)</item>
+        <item>Trắng</item><item>Đen</item><item>Đỏ</item><item>Vàng</item><item>Xanh lá</item><item>Xanh dương</item><item>Cam</item>
+    </string-array>
+    <string-array name="color_auto_values">
+        <item>auto</item>
+        <item>#FFFFFFFF</item><item>#FF000000</item><item>#FFE53935</item><item>#FFFFC107</item><item>#FF4CAF50</item><item>#FF2196F3</item><item>#FFFF9800</item>
+    </string-array>
+    <string-array name="signal_style_entries"><item>Thanh</item><item>Chấm</item></string-array>
+    <string-array name="signal_style_values"><item>0</item><item>1</item></string-array>
+    <string-array name="pos_entries_chip">
+        <item>Đi cùng biểu tượng thông báo</item>
+        <item>Mặc định (không di chuyển)</item>
+        <item>Trái – trên</item><item>Giữa – trên</item><item>Phải – trên</item>
+        <item>Trái – giữa</item><item>Giữa – giữa</item><item>Phải – giữa</item>
+        <item>Trái – dưới</item><item>Giữa – dưới</item><item>Phải – dưới</item>
+    </string-array>
+    <string-array name="pos_values_chip">
+        <item>-2</item><item>-1</item>
+        <item>0</item><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item><item>7</item><item>8</item>
+    </string-array>
 </resources>

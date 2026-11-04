@@ -1,173 +1,191 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:title="@string/app_name">
 
-    <PreferenceCategory android:title="Chung">
-        <SwitchPreferenceCompat android:key="enabled" android:title="Bật module" android:defaultValue="true" />
-    </PreferenceCategory>
+    <SwitchPreferenceCompat android:key="enabled" android:title="Bật module" android:defaultValue="true" />
 
-    <PreferenceCategory android:title="Thanh trạng thái 2 dòng">
-        <SwitchPreferenceCompat android:key="dual_enabled" android:title="Bật chế độ 2 dòng" android:summary="Đổi chiều cao thanh nên khởi động lại máy để vùng nội dung ứng dụng khớp" android:defaultValue="true" />
-        <SeekBarPreference android:key="bar_height_dp" android:title="Chiều cao thanh (dp)"
-            app:min="24" android:max="80" app:showSeekBarValue="true" android:defaultValue="44" />
-        <ListPreference android:key="pos_clock" android:title="Vị trí đồng hồ số gốc"
-            android:entries="@array/pos_entries_def" android:entryValues="@array/pos_values_def"
-            android:defaultValue="0" app:useSimpleSummaryProvider="true" />
-        <ListPreference android:key="pos_notif" android:title="Vị trí biểu tượng thông báo"
-            android:entries="@array/pos_entries_def" android:entryValues="@array/pos_values_def"
-            android:defaultValue="6" app:useSimpleSummaryProvider="true" />
-        <ListPreference android:key="pos_icons" android:title="Vị trí biểu tượng hệ thống + pin"
-            android:entries="@array/pos_entries_def" android:entryValues="@array/pos_values_def"
-            android:defaultValue="5" app:useSimpleSummaryProvider="true" />
-    </PreferenceCategory>
+    <PreferenceScreen android:key="scr_dual" android:title="Thanh 2 dòng" android:summary="Chiều cao và vị trí các biểu tượng gốc">
+            <SwitchPreferenceCompat android:key="dual_enabled" android:title="Bật chế độ 2 dòng" android:summary="Đổi chiều cao nên khởi động lại máy để vùng nội dung ứng dụng khớp" android:defaultValue="true" />
+            <SeekBarPreference android:key="bar_height_dp" android:title="Chiều cao thanh (dp)"
+                app:min="24" android:max="80" app:showSeekBarValue="true" android:defaultValue="44" />
+            <ListPreference android:key="pos_clock" android:title="Vị trí đồng hồ số gốc"
+                android:entries="@array/pos_entries_def" android:entryValues="@array/pos_values_def"
+                android:defaultValue="0" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="pos_notif" android:title="Vị trí biểu tượng thông báo"
+                android:entries="@array/pos_entries_def" android:entryValues="@array/pos_values_def"
+                android:defaultValue="6" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="pos_chip" android:title="Vị trí Now Bar (chip trên thanh trạng thái)"
+                android:entries="@array/pos_entries_chip" android:entryValues="@array/pos_values_chip"
+                android:defaultValue="-2" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="pos_icons" android:title="Vị trí biểu tượng hệ thống + pin"
+                android:entries="@array/pos_entries_def" android:entryValues="@array/pos_values_def"
+                android:defaultValue="5" app:useSimpleSummaryProvider="true" />
+    </PreferenceScreen>
 
-    <PreferenceCategory android:title="Hình nền thanh trạng thái">
-        <SwitchPreferenceCompat android:key="bg_enabled" android:title="Dùng hình nền" android:defaultValue="true" />
-        <Preference android:key="pick_bg" android:title="Chọn ảnh nền" android:summary="PNG/WebP có nền trong suốt càng tốt" />
-        <Preference android:key="clear_bg" android:title="Xoá ảnh nền" />
-        <ListPreference android:key="bg_scale" android:title="Cách hiển thị"
-            android:entries="@array/scale_entries" android:entryValues="@array/scale_values"
-            android:defaultValue="0" app:useSimpleSummaryProvider="true" />
-        <SeekBarPreference android:key="bg_alpha" android:title="Độ mờ (%)"
-            app:min="0" android:max="100" app:showSeekBarValue="true" android:defaultValue="100" />
-    </PreferenceCategory>
+    <PreferenceScreen android:key="scr_bg" android:title="Hình nền" android:summary="Ảnh nền, kiểu hiển thị, độ mờ">
+            <SwitchPreferenceCompat android:key="bg_enabled" android:title="Dùng hình nền" android:defaultValue="true" />
+            <Preference android:key="pick_bg" android:title="Chọn ảnh nền" android:summary="PNG/WebP có nền trong suốt càng tốt" />
+            <Preference android:key="clear_bg" android:title="Xoá ảnh nền" />
+            <ListPreference android:key="bg_scale" android:title="Cách hiển thị"
+                android:entries="@array/scale_entries" android:entryValues="@array/scale_values"
+                android:defaultValue="0" app:useSimpleSummaryProvider="true" />
+            <SeekBarPreference android:key="bg_alpha" android:title="Độ mờ (%)"
+                app:min="0" android:max="100" app:showSeekBarValue="true" android:defaultValue="100" />
+    </PreferenceScreen>
 
-    <PreferenceCategory android:title="Giờ (đồng hồ số tách riêng)">
-        <SwitchPreferenceCompat android:key="digital_replace" android:title="Ẩn đồng hồ số gốc của Samsung" android:summary="Bật khi muốn dùng giờ / ngày riêng của module bên dưới" android:defaultValue="false" />
-        <SwitchPreferenceCompat android:key="time_enabled" android:title="Hiện giờ" android:defaultValue="false" />
-        <ListPreference android:key="time_format" android:title="Kiểu giờ"
-            android:entries="@array/time_fmt_entries" android:entryValues="@array/time_fmt_values"
-            android:defaultValue="HH:mm" app:useSimpleSummaryProvider="true" />
-        <ListPreference android:key="time_pos" android:title="Vị trí giờ"
-            android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
-            android:defaultValue="0" app:useSimpleSummaryProvider="true" />
-        <SeekBarPreference android:key="time_size" android:title="Cỡ chữ giờ (sp)"
-            app:min="8" android:max="28" app:showSeekBarValue="true" android:defaultValue="14" />
-        <SeekBarPreference android:key="time_dx" android:title="Dịch ngang (dp)"
-            app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
-        <SeekBarPreference android:key="time_dy" android:title="Dịch dọc (dp)"
-            app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
-        <ListPreference android:key="time_color" android:title="Màu giờ"
-            android:entries="@array/color_entries" android:entryValues="@array/color_values"
-            android:defaultValue="#FFFFFFFF" app:useSimpleSummaryProvider="true" />
-    </PreferenceCategory>
+    <PreferenceScreen android:key="scr_time" android:title="Giờ" android:summary="Đồng hồ số tách riêng khỏi ngày">
+            <SwitchPreferenceCompat android:key="digital_replace" android:title="Ẩn đồng hồ số gốc của Samsung" android:summary="Bật khi muốn dùng giờ / ngày riêng của module" android:defaultValue="false" />
+            <SwitchPreferenceCompat android:key="time_enabled" android:title="Hiện giờ" android:defaultValue="false" />
+            <ListPreference android:key="time_format" android:title="Kiểu giờ"
+                android:entries="@array/time_fmt_entries" android:entryValues="@array/time_fmt_values"
+                android:defaultValue="HH:mm" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="time_pos" android:title="Vị trí"
+                android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
+                android:defaultValue="0" app:useSimpleSummaryProvider="true" />
+            <SeekBarPreference android:key="time_size" android:title="Cỡ chữ (sp)"
+                app:min="8" android:max="28" app:showSeekBarValue="true" android:defaultValue="14" />
+            <SeekBarPreference android:key="time_dx" android:title="Dịch ngang (dp)"
+                app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
+            <SeekBarPreference android:key="time_dy" android:title="Dịch dọc (dp)"
+                app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
+            <ListPreference android:key="time_color" android:title="Màu chữ"
+                android:entries="@array/color_auto_entries" android:entryValues="@array/color_auto_values"
+                android:defaultValue="auto" app:useSimpleSummaryProvider="true" />
+    </PreferenceScreen>
 
-    <PreferenceCategory android:title="Ngày tháng (dương lịch / âm lịch)">
-        <SwitchPreferenceCompat android:key="date_enabled" android:title="Hiện ngày tháng" android:defaultValue="false" />
-        <ListPreference android:key="date_mode" android:title="Loại lịch"
-            android:entries="@array/date_mode_entries" android:entryValues="@array/date_mode_values"
-            android:defaultValue="0" app:useSimpleSummaryProvider="true" />
-        <ListPreference android:key="date_format" android:title="Kiểu dương lịch"
-            android:entries="@array/date_fmt_entries" android:entryValues="@array/date_fmt_values"
-            android:defaultValue="EEE, d MMM" app:useSimpleSummaryProvider="true" />
-        <EditTextPreference android:key="date_custom" android:title="Kiểu dương lịch tự gõ (tuỳ chọn)"
-            android:summary="Mẫu SimpleDateFormat, ví dụ: EEEE, dd/MM/yyyy. Để trống để dùng kiểu ở trên"
-            android:defaultValue="" />
-        <ListPreference android:key="lunar_format" android:title="Kiểu âm lịch"
-            android:entries="@array/lunar_fmt_entries" android:entryValues="@array/lunar_fmt_values"
-            android:defaultValue="0" app:useSimpleSummaryProvider="true" />
-        <SwitchPreferenceCompat android:key="lunar_newline" android:title="Âm lịch xuống dòng riêng" android:summary="Chỉ có tác dụng với kiểu Dương lịch + âm lịch" android:defaultValue="false" />
-        <ListPreference android:key="date_pos" android:title="Vị trí ngày tháng"
-            android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
-            android:defaultValue="6" app:useSimpleSummaryProvider="true" />
-        <SeekBarPreference android:key="date_size" android:title="Cỡ chữ ngày (sp)"
-            app:min="6" android:max="24" app:showSeekBarValue="true" android:defaultValue="11" />
-        <SeekBarPreference android:key="date_dx" android:title="Dịch ngang (dp)"
-            app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
-        <SeekBarPreference android:key="date_dy" android:title="Dịch dọc (dp)"
-            app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
-        <ListPreference android:key="date_color" android:title="Màu ngày"
-            android:entries="@array/color_entries" android:entryValues="@array/color_values"
-            android:defaultValue="#FFFFFFFF" app:useSimpleSummaryProvider="true" />
-    </PreferenceCategory>
+    <PreferenceScreen android:key="scr_date" android:title="Ngày tháng" android:summary="Dương lịch, âm lịch">
+            <SwitchPreferenceCompat android:key="date_enabled" android:title="Hiện ngày tháng" android:defaultValue="false" />
+            <ListPreference android:key="date_mode" android:title="Loại lịch"
+                android:entries="@array/date_mode_entries" android:entryValues="@array/date_mode_values"
+                android:defaultValue="0" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="date_format" android:title="Kiểu dương lịch"
+                android:entries="@array/date_fmt_entries" android:entryValues="@array/date_fmt_values"
+                android:defaultValue="EEE, d MMM" app:useSimpleSummaryProvider="true" />
+            <EditTextPreference android:key="date_custom" android:title="Kiểu dương lịch tự gõ (tuỳ chọn)"
+                android:summary="Mẫu SimpleDateFormat, ví dụ: EEEE, dd/MM/yyyy. Để trống để dùng kiểu ở trên"
+                android:defaultValue="" />
+            <ListPreference android:key="lunar_format" android:title="Kiểu âm lịch"
+                android:entries="@array/lunar_fmt_entries" android:entryValues="@array/lunar_fmt_values"
+                android:defaultValue="0" app:useSimpleSummaryProvider="true" />
+            <SwitchPreferenceCompat android:key="lunar_newline" android:title="Âm lịch xuống dòng riêng" android:summary="Chỉ có tác dụng với kiểu Dương lịch + âm lịch" android:defaultValue="false" />
+            <ListPreference android:key="date_pos" android:title="Vị trí"
+                android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
+                android:defaultValue="6" app:useSimpleSummaryProvider="true" />
+            <SeekBarPreference android:key="date_size" android:title="Cỡ chữ (sp)"
+                app:min="6" android:max="24" app:showSeekBarValue="true" android:defaultValue="11" />
+            <SeekBarPreference android:key="date_dx" android:title="Dịch ngang (dp)"
+                app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
+            <SeekBarPreference android:key="date_dy" android:title="Dịch dọc (dp)"
+                app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
+            <ListPreference android:key="date_color" android:title="Màu chữ"
+                android:entries="@array/color_auto_entries" android:entryValues="@array/color_auto_values"
+                android:defaultValue="auto" app:useSimpleSummaryProvider="true" />
+    </PreferenceScreen>
 
-    <PreferenceCategory android:title="Pin dạng vòng">
-        <SwitchPreferenceCompat android:key="ring_enabled" android:title="Hiện pin dạng vòng" android:summary="% nằm giữa vòng; vòng đổi màu theo trạng thái" android:defaultValue="false" />
-        <SwitchPreferenceCompat android:key="ring_hide_stock" android:title="Ẩn biểu tượng pin gốc" android:defaultValue="true" />
-        <SwitchPreferenceCompat android:key="ring_percent" android:title="Hiện số % trong vòng" android:defaultValue="true" />
-        <ListPreference android:key="ring_pos" android:title="Vị trí"
-            android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
-            android:defaultValue="5" app:useSimpleSummaryProvider="true" />
-        <SeekBarPreference android:key="ring_size" android:title="Kích thước (dp)"
-            app:min="12" android:max="40" app:showSeekBarValue="true" android:defaultValue="22" />
-        <SeekBarPreference android:key="ring_stroke" android:title="Độ dày vòng (dp)"
-            app:min="1" android:max="6" app:showSeekBarValue="true" android:defaultValue="2" />
-        <SeekBarPreference android:key="ring_dx" android:title="Dịch ngang (dp)"
-            app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
-        <SeekBarPreference android:key="ring_dy" android:title="Dịch dọc (dp)"
-            app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
-        <ListPreference android:key="ring_color" android:title="Màu thường"
-            android:entries="@array/color_entries" android:entryValues="@array/color_values"
-            android:defaultValue="#FFFFFFFF" app:useSimpleSummaryProvider="true" />
-        <ListPreference android:key="ring_color_charging" android:title="Màu khi sạc"
-            android:entries="@array/color_entries" android:entryValues="@array/color_values"
-            android:defaultValue="#FF4CAF50" app:useSimpleSummaryProvider="true" />
-        <ListPreference android:key="ring_color_saver" android:title="Màu khi tiết kiệm pin"
-            android:entries="@array/color_entries" android:entryValues="@array/color_values"
-            android:defaultValue="#FFFFC107" app:useSimpleSummaryProvider="true" />
-        <ListPreference android:key="ring_color_low" android:title="Màu khi pin yếu"
-            android:entries="@array/color_entries" android:entryValues="@array/color_values"
-            android:defaultValue="#FFE53935" app:useSimpleSummaryProvider="true" />
-        <SeekBarPreference android:key="ring_low_level" android:title="Ngưỡng pin yếu (%)"
-            app:min="5" android:max="50" app:showSeekBarValue="true" android:defaultValue="20" />
-    </PreferenceCategory>
+    <PreferenceScreen android:key="scr_ring" android:title="Pin, Wi-Fi &amp; sóng" android:summary="Khối dạng vòng: pin, Wi-Fi, sóng di động">
+            <SwitchPreferenceCompat android:key="ring_enabled" android:title="Hiện khối pin vòng" android:summary="% nằm giữa vòng; vòng đổi màu theo trạng thái" android:defaultValue="false" />
+            <SwitchPreferenceCompat android:key="ring_hide_stock" android:title="Ẩn biểu tượng pin gốc" android:defaultValue="true" />
+            <SwitchPreferenceCompat android:key="ring_percent" android:title="Hiện số % trong vòng" android:defaultValue="true" />
+            <SwitchPreferenceCompat android:key="ring_show_wifi" android:title="Hiện Wi-Fi" android:summary="Chỉ hiện khi đang kết nối Wi-Fi" android:defaultValue="true" />
+            <SwitchPreferenceCompat android:key="ring_show_signal" android:title="Hiện sóng di động" android:defaultValue="true" />
+            <ListPreference android:key="ring_signal_style" android:title="Kiểu sóng di động"
+                android:entries="@array/signal_style_entries" android:entryValues="@array/signal_style_values"
+                android:defaultValue="0" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="ring_pos" android:title="Vị trí"
+                android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
+                android:defaultValue="5" app:useSimpleSummaryProvider="true" />
+            <SeekBarPreference android:key="ring_size" android:title="Kích thước (dp)"
+                app:min="12" android:max="40" app:showSeekBarValue="true" android:defaultValue="22" />
+            <SeekBarPreference android:key="ring_stroke" android:title="Độ dày vòng (dp)"
+                app:min="1" android:max="6" app:showSeekBarValue="true" android:defaultValue="2" />
+            <SeekBarPreference android:key="ring_dx" android:title="Dịch ngang (dp)"
+                app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
+            <SeekBarPreference android:key="ring_dy" android:title="Dịch dọc (dp)"
+                app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
+            <ListPreference android:key="ring_color" android:title="Màu thường (vòng, Wi-Fi, sóng)"
+                android:entries="@array/color_auto_entries" android:entryValues="@array/color_auto_values"
+                android:defaultValue="auto" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="ring_color_charging" android:title="Màu khi sạc"
+                android:entries="@array/color_entries" android:entryValues="@array/color_values"
+                android:defaultValue="#FF4CAF50" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="ring_color_saver" android:title="Màu khi tiết kiệm pin"
+                android:entries="@array/color_entries" android:entryValues="@array/color_values"
+                android:defaultValue="#FFFFC107" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="ring_color_low" android:title="Màu khi pin yếu"
+                android:entries="@array/color_entries" android:entryValues="@array/color_values"
+                android:defaultValue="#FFE53935" app:useSimpleSummaryProvider="true" />
+            <SeekBarPreference android:key="ring_low_level" android:title="Ngưỡng pin yếu (%)"
+                app:min="5" android:max="50" app:showSeekBarValue="true" android:defaultValue="20" />
+    </PreferenceScreen>
 
-    <PreferenceCategory android:title="Đường pin ở viền dưới">
-        <SwitchPreferenceCompat android:key="battery_line" android:title="Hiện đường pin" android:summary="Đường kẻ ngang căn giữa, dài theo % pin" android:defaultValue="true" />
-        <SeekBarPreference android:key="battery_line_h" android:title="Độ dày (dp)"
-            app:min="1" android:max="8" app:showSeekBarValue="true" android:defaultValue="2" />
-        <ListPreference android:key="battery_color_normal" android:title="Màu thường"
-            android:entries="@array/color_entries" android:entryValues="@array/color_values"
-            android:defaultValue="#FFE53935" app:useSimpleSummaryProvider="true" />
-        <ListPreference android:key="battery_color_charging" android:title="Màu khi sạc"
-            android:entries="@array/color_entries" android:entryValues="@array/color_values"
-            android:defaultValue="#FF4CAF50" app:useSimpleSummaryProvider="true" />
-    </PreferenceCategory>
+    <PreferenceScreen android:key="scr_batline" android:title="Đường pin viền dưới" android:summary="Đường kẻ ngang căn giữa theo % pin">
+            <SwitchPreferenceCompat android:key="battery_line" android:title="Hiện đường pin" android:defaultValue="true" />
+            <SeekBarPreference android:key="battery_line_h" android:title="Độ dày (dp)"
+                app:min="1" android:max="8" app:showSeekBarValue="true" android:defaultValue="2" />
+            <ListPreference android:key="battery_color_normal" android:title="Màu thường"
+                android:entries="@array/color_entries" android:entryValues="@array/color_values"
+                android:defaultValue="#FFE53935" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="battery_color_charging" android:title="Màu khi sạc"
+                android:entries="@array/color_entries" android:entryValues="@array/color_values"
+                android:defaultValue="#FF4CAF50" app:useSimpleSummaryProvider="true" />
+            <SwitchPreferenceCompat android:key="battery_anim" android:title="Hiệu ứng chấm xanh khi sạc"
+                android:summary="Các chấm chạy từ hai lề vào hai đầu thanh pin" android:defaultValue="true" />
+            <SeekBarPreference android:key="battery_anim_speed" android:title="Tốc độ chạy"
+                app:min="1" android:max="10" app:showSeekBarValue="true" android:defaultValue="4" />
+            <SeekBarPreference android:key="battery_anim_gap" android:title="Khoảng cách giữa các chấm (dp)"
+                app:min="8" android:max="80" app:showSeekBarValue="true" android:defaultValue="28" />
+    </PreferenceScreen>
 
-    <PreferenceCategory android:title="Tên nhà mạng / chữ tuỳ chỉnh">
-        <ListPreference android:key="label_mode" android:title="Chế độ"
-            android:entries="@array/label_mode_entries" android:entryValues="@array/label_mode_values"
-            android:defaultValue="0" app:useSimpleSummaryProvider="true" />
-        <EditTextPreference android:key="label_text" android:title="Chữ tuỳ chỉnh"
-            android:defaultValue="" app:useSimpleSummaryProvider="true" />
-        <ListPreference android:key="label_pos" android:title="Vị trí"
-            android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
-            android:defaultValue="1" app:useSimpleSummaryProvider="true" />
-        <SeekBarPreference android:key="label_size" android:title="Cỡ chữ (sp)"
-            app:min="6" android:max="20" app:showSeekBarValue="true" android:defaultValue="11" />
-        <SeekBarPreference android:key="label_dx" android:title="Dịch ngang (dp)"
-            app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
-        <SeekBarPreference android:key="label_dy" android:title="Dịch dọc (dp)"
-            app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
-        <ListPreference android:key="label_color" android:title="Màu chữ"
-            android:entries="@array/color_entries" android:entryValues="@array/color_values"
-            android:defaultValue="#FFFFFFFF" app:useSimpleSummaryProvider="true" />
-    </PreferenceCategory>
+    <PreferenceScreen android:key="scr_label" android:title="Nhà mạng / chữ tuỳ chỉnh" android:summary="Hiện tên nhà mạng hoặc dòng chữ riêng">
+            <ListPreference android:key="label_mode" android:title="Chế độ"
+                android:entries="@array/label_mode_entries" android:entryValues="@array/label_mode_values"
+                android:defaultValue="0" app:useSimpleSummaryProvider="true" />
+            <EditTextPreference android:key="label_text" android:title="Chữ tuỳ chỉnh"
+                android:defaultValue="" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="label_pos" android:title="Vị trí"
+                android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
+                android:defaultValue="1" app:useSimpleSummaryProvider="true" />
+            <SeekBarPreference android:key="label_size" android:title="Cỡ chữ (sp)"
+                app:min="6" android:max="20" app:showSeekBarValue="true" android:defaultValue="11" />
+            <SeekBarPreference android:key="label_dx" android:title="Dịch ngang (dp)"
+                app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
+            <SeekBarPreference android:key="label_dy" android:title="Dịch dọc (dp)"
+                app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
+            <ListPreference android:key="label_color" android:title="Màu chữ"
+                android:entries="@array/color_auto_entries" android:entryValues="@array/color_auto_values"
+                android:defaultValue="auto" app:useSimpleSummaryProvider="true" />
+    </PreferenceScreen>
 
-    <PreferenceCategory android:title="Đồng hồ analog">
-        <SwitchPreferenceCompat android:key="analog_enabled" android:title="Hiện đồng hồ analog" android:defaultValue="true" />
-        <ListPreference android:key="analog_pos" android:title="Vị trí"
-            android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
-            android:defaultValue="4" app:useSimpleSummaryProvider="true" />
-        <SeekBarPreference android:key="analog_size" android:title="Kích thước (dp)"
-            app:min="12" android:max="64" app:showSeekBarValue="true" android:defaultValue="28" />
-        <SeekBarPreference android:key="analog_dx" android:title="Dịch ngang (dp)"
-            app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
-        <SeekBarPreference android:key="analog_dy" android:title="Dịch dọc (dp)"
-            app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
-        <SwitchPreferenceCompat android:key="analog_seconds" android:title="Kim giây" android:defaultValue="true" />
-        <SwitchPreferenceCompat android:key="analog_hide_digital" android:title="Ẩn đồng hồ số gốc" android:defaultValue="false" />
-        <ListPreference android:key="analog_color" android:title="Màu kim mặc định (khi không có ảnh kim)"
-            android:entries="@array/color_entries" android:entryValues="@array/color_values"
-            android:defaultValue="#FFFFFFFF" app:useSimpleSummaryProvider="true" />
-        <Preference android:key="pick_dial" android:title="Chọn ảnh mặt đồng hồ" />
-        <Preference android:key="clear_dial" android:title="Xoá ảnh mặt đồng hồ" />
-        <Preference android:key="pick_hour" android:title="Chọn ảnh kim giờ" android:summary="Ảnh vuông cùng cỡ mặt đồng hồ, kim hướng lên 12 giờ, tâm ảnh = trục quay" />
-        <Preference android:key="clear_hour" android:title="Xoá ảnh kim giờ" />
-        <Preference android:key="pick_minute" android:title="Chọn ảnh kim phút" />
-        <Preference android:key="clear_minute" android:title="Xoá ảnh kim phút" />
-        <Preference android:key="pick_second" android:title="Chọn ảnh kim giây" />
-        <Preference android:key="clear_second" android:title="Xoá ảnh kim giây" />
-    </PreferenceCategory>
+    <PreferenceScreen android:key="scr_analog" android:title="Đồng hồ analog" android:summary="Vị trí, mặt đồng hồ, kim">
+            <SwitchPreferenceCompat android:key="analog_enabled" android:title="Hiện đồng hồ analog" android:defaultValue="true" />
+            <ListPreference android:key="analog_pos" android:title="Vị trí"
+                android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
+                android:defaultValue="4" app:useSimpleSummaryProvider="true" />
+            <SeekBarPreference android:key="analog_size" android:title="Kích thước (dp)"
+                app:min="12" android:max="64" app:showSeekBarValue="true" android:defaultValue="28" />
+            <SeekBarPreference android:key="analog_dx" android:title="Dịch ngang (dp)"
+                app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
+            <SeekBarPreference android:key="analog_dy" android:title="Dịch dọc (dp)"
+                app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
+            <SwitchPreferenceCompat android:key="analog_seconds" android:title="Kim giây" android:defaultValue="true" />
+            <SwitchPreferenceCompat android:key="analog_hide_digital" android:title="Ẩn đồng hồ số gốc" android:defaultValue="false" />
+            <ListPreference android:key="analog_color" android:title="Màu kim mặc định (khi không có ảnh kim)"
+                android:entries="@array/color_auto_entries" android:entryValues="@array/color_auto_values"
+                android:defaultValue="auto" app:useSimpleSummaryProvider="true" />
+            <Preference android:key="pick_dial" android:title="Chọn ảnh mặt đồng hồ" />
+            <Preference android:key="clear_dial" android:title="Xoá ảnh mặt đồng hồ" />
+            <Preference android:key="pick_hour" android:title="Chọn ảnh kim giờ" android:summary="Ảnh vuông cùng cỡ mặt đồng hồ, kim hướng lên 12 giờ, tâm ảnh = trục quay" />
+            <Preference android:key="clear_hour" android:title="Xoá ảnh kim giờ" />
+            <Preference android:key="pick_minute" android:title="Chọn ảnh kim phút" />
+            <Preference android:key="clear_minute" android:title="Xoá ảnh kim phút" />
+            <Preference android:key="pick_second" android:title="Chọn ảnh kim giây" />
+            <Preference android:key="clear_second" android:title="Xoá ảnh kim giây" />
+    </PreferenceScreen>
+
+    <PreferenceScreen android:key="scr_backup" android:title="Sao lưu &amp; khôi phục" android:summary="Xuất / nhập toàn bộ cài đặt và ảnh">
+            <Preference android:key="backup_export" android:title="Sao lưu cài đặt" android:summary="Lưu cài đặt và các ảnh đã chọn vào một file .zip" />
+            <Preference android:key="backup_import" android:title="Khôi phục cài đặt" android:summary="Chọn file .zip đã sao lưu; sẽ ghi đè cài đặt hiện tại" />
+    </PreferenceScreen>
 
 </PreferenceScreen>
