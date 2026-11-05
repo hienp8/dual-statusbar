@@ -22,6 +22,7 @@
         <provider
             android:name=".ConfigProvider"
             android:authorities="com.dualsb.oneui.provider"
+            android:directBootAware="true"
             android:exported="true" />
     </application>
 </manifest>

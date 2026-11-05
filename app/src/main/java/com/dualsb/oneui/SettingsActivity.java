@@ -41,7 +41,9 @@ public class SettingsActivity extends AppCompatActivity
     @Override
     protected void onCreate(Bundle s) {
         super.onCreate(s);
-        PreferenceManager.setDefaultValues(this, R.xml.prefs, false);
+        Storage.migrate(this);
+        PreferenceManager.setDefaultValues(Storage.dp(this), Storage.prefsName(this), Context.MODE_PRIVATE,
+                R.xml.prefs, false);
         if (s == null) {
             getSupportFragmentManager().beginTransaction()
                     .replace(android.R.id.content, new SettingsFragment()).commit();
@@ -91,6 +93,7 @@ public class SettingsActivity extends AppCompatActivity
 
         @Override
         public void onCreatePreferences(Bundle b, String rootKey) {
+            getPreferenceManager().setStorageDeviceProtected();   // cùng nơi SystemUI đọc, dùng được ngay sau reboot
             setPreferencesFromResource(R.xml.prefs, rootKey);
             for (final String n : Config.IMAGES) {
                 Preference pick = findPreference("pick_" + n);
@@ -101,7 +104,7 @@ public class SettingsActivity extends AppCompatActivity
                 });
                 Preference clear = findPreference("clear_" + n);
                 if (clear != null) clear.setOnPreferenceClickListener(p -> {
-                    new File(requireContext().getFilesDir(), n + ".png").delete();
+                    new File(Storage.dir(requireContext()), n + ".png").delete();
                     notifyChanged(requireContext());
                     Toast.makeText(getContext(), "Đã xoá", Toast.LENGTH_SHORT).show();
                     return true;
@@ -138,7 +141,7 @@ public class SettingsActivity extends AppCompatActivity
                     bm = BitmapFactory.decodeStream(in, null, o2);
                 }
                 if (bm == null) throw new IOException("decode failed");
-                File f = new File(c.getFilesDir(), name + ".png");
+                File f = new File(Storage.dir(c), name + ".png");
                 try (FileOutputStream out = new FileOutputStream(f)) {
                     bm.compress(Bitmap.CompressFormat.PNG, 100, out);
                 }
@@ -166,7 +169,7 @@ public class SettingsActivity extends AppCompatActivity
                 z.write(o.toString(2).getBytes("UTF-8"));
                 z.closeEntry();
                 for (String n : Config.IMAGES) {
-                    File f = new File(c.getFilesDir(), n + ".png");
+                    File f = new File(Storage.dir(c), n + ".png");
                     if (!f.exists()) continue;
                     z.putNextEntry(new ZipEntry(n + ".png"));
                     try (FileInputStream in = new FileInputStream(f)) {
@@ -218,7 +221,7 @@ public class SettingsActivity extends AppCompatActivity
                 ed.apply();
 
                 for (String n : Config.IMAGES) {
-                    File f = new File(c.getFilesDir(), n + ".png");
+                    File f = new File(Storage.dir(c), n + ".png");
                     byte[] d = imgs.get(n);
                     if (d != null) {
                         try (FileOutputStream out = new FileOutputStream(f)) { out.write(d); }

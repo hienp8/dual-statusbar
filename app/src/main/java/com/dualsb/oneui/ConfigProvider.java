@@ -15,13 +15,15 @@ import java.util.Map;
 
 /** SystemUI đọc cấu hình + ảnh qua provider này (SystemUI không đọc được thư mục private của app). */
 public class ConfigProvider extends ContentProvider {
-    @Override public boolean onCreate() { return true; }
+    @Override public boolean onCreate() {
+        try { Storage.migrate(getContext()); } catch (Throwable ignored) {}
+        return true;
+    }
 
     @Override
     public Bundle call(String method, String arg, Bundle extras) {
         Bundle out = new Bundle();
-        SharedPreferences sp = getContext().getSharedPreferences(
-                getContext().getPackageName() + "_preferences", 0);
+        SharedPreferences sp = Storage.prefs(getContext());
         for (Map.Entry<String, ?> e : sp.getAll().entrySet()) {
             Object v = e.getValue();
             if (v instanceof Boolean) out.putBoolean(e.getKey(), (Boolean) v);
@@ -30,7 +32,7 @@ public class ConfigProvider extends ContentProvider {
             else if (v instanceof String) out.putString(e.getKey(), (String) v);
         }
         for (String n : Config.IMAGES) {
-            File f = new File(getContext().getFilesDir(), n + ".png");
+            File f = new File(Storage.dir(getContext()), n + ".png");
             out.putLong("img_" + n, f.exists() ? Math.max(1, f.lastModified()) : 0L);
         }
         return out;
@@ -40,7 +42,7 @@ public class ConfigProvider extends ContentProvider {
     public ParcelFileDescriptor openFile(Uri uri, String mode) throws FileNotFoundException {
         String name = uri.getLastPathSegment();
         if (name == null || !Arrays.asList(Config.IMAGES).contains(name)) throw new FileNotFoundException();
-        File f = new File(getContext().getFilesDir(), name + ".png");
+        File f = new File(Storage.dir(getContext()), name + ".png");
         if (!f.exists()) throw new FileNotFoundException();
         return ParcelFileDescriptor.open(f, ParcelFileDescriptor.MODE_READ_ONLY);
     }

@@ -18,6 +18,8 @@ public final class Config {
     public static final String POS_CLOCK = "pos_clock";
     public static final String POS_NOTIF = "pos_notif";
     public static final String POS_ICONS = "pos_icons";
+    public static final String CHIP_FWD = "chip_forward_touch";
+    public static final String KG_ROW = "kg_row";                // 0 giữ nguyên, 1 hàng trên, 2 hàng dưới
     public static final String POS_CHIP = "pos_chip";            // -2 = theo thông báo, -1 = không di chuyển
     public static final String BG_ENABLED = "bg_enabled";
     public static final String BG_SCALE = "bg_scale";
@@ -96,6 +98,7 @@ public final class Config {
             case POS_NOTIF: return 6;
             case POS_ICONS: return 5;
             case POS_CHIP: return -2;
+            case KG_ROW: return 2;
             case BAT_SPEED: return 4;
             case BAT_GAP: return 28;
             case BG_ALPHA: return 100;

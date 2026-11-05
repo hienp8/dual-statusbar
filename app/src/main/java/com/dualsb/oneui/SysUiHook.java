@@ -1,6 +1,9 @@
 package com.dualsb.oneui;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.Resources;
 import android.database.ContentObserver;
 import android.net.Uri;
@@ -47,6 +50,20 @@ public final class SysUiHook {
         hookResources();
         hookWindow(cl);
 
+        Class<?> kg = XposedHelpers.findClassIfExists(
+                "com.android.systemui.statusbar.phone.KeyguardStatusBarView", cl);
+        if (kg == null) {
+            XposedBridge.log(TAG + "KeyguardStatusBarView not found");
+        } else {
+            XposedBridge.hookAllConstructors(kg, new XC_MethodHook() {
+                @Override protected void afterHookedMethod(MethodHookParam p) {
+                    final ViewGroup v = (ViewGroup) p.thisObject;
+                    v.post(new Runnable() { @Override public void run() { attachKeyguard(v); } });
+                }
+            });
+            XposedBridge.log(TAG + "hooked KeyguardStatusBarView");
+        }
+
         Class<?> c = XposedHelpers.findClassIfExists(
                 "com.android.systemui.statusbar.phone.PhoneStatusBarView", cl);
         if (c == null) { XposedBridge.log(TAG + "PhoneStatusBarView not found"); return; }
@@ -60,15 +77,45 @@ public final class SysUiHook {
         XposedBridge.log(TAG + "hooked PhoneStatusBarView");
     }
 
+    static volatile Bundle lastCfg;
+    static volatile float rowTopPx, rowBottomPx;
+    private static final Set<KeyguardBarController> KG =
+            Collections.newSetFromMap(new WeakHashMap<KeyguardBarController, Boolean>());
+    private static int retry;
+    private static Runnable pendingRetry;
+
+    /** Hàng trên/dưới (toạ độ px trong thanh) do BarController tính, để màn hình khóa dùng chung. */
+    static void setRows(float top, float bottom) {
+        if (Math.abs(top - rowTopPx) < 0.5f && Math.abs(bottom - rowBottomPx) < 0.5f) return;
+        rowTopPx = top;
+        rowBottomPx = bottom;
+        for (KeyguardBarController k : new ArrayList<>(KG)) k.relayout();
+    }
+
     private static void attach(ViewGroup v) {
         try {
             for (BarController b : new ArrayList<>(CONTROLLERS)) if (b.root == v) return;
             BarController b = new BarController(v);
             CONTROLLERS.add(b);
             ensureObserver(v.getContext());
+            Bundle c = lastCfg;
+            if (c != null) b.apply(c);
             refresh(v.getContext());
         } catch (Throwable t) {
             XposedBridge.log(TAG + "attach: " + Log.getStackTraceString(t));
+        }
+    }
+
+    private static void attachKeyguard(ViewGroup v) {
+        try {
+            for (KeyguardBarController k : new ArrayList<>(KG)) if (k.view == v) return;
+            KeyguardBarController k = new KeyguardBarController(v);
+            KG.add(k);
+            ensureObserver(v.getContext());
+            Bundle c = lastCfg;
+            if (c != null) k.apply(c);
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + "attachKeyguard: " + Log.getStackTraceString(t));
         }
     }
 
@@ -79,6 +126,14 @@ public final class SysUiHook {
                 new ContentObserver(UI) {
                     @Override public void onChange(boolean selfChange) { refresh(ctx); }
                 });
+        // Sau khi khởi động lại, SystemUI chạy trước khi mở khoá: đọc lại ngay khi người dùng mở khoá.
+        try {
+            ctx.registerReceiver(new BroadcastReceiver() {
+                @Override public void onReceive(Context c, Intent i) { refresh(ctx); }
+            }, new IntentFilter("android.intent.action.USER_UNLOCKED"), Context.RECEIVER_NOT_EXPORTED);
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + "register USER_UNLOCKED: " + t);
+        }
     }
 
     static void refresh(final Context ctx) {
@@ -88,20 +143,37 @@ public final class SysUiHook {
                 try {
                     b = ctx.getContentResolver().call(Uri.parse(Config.CONFIG_URI), "get", null, null);
                 } catch (Throwable t) {
-                    XposedBridge.log(TAG + "đọc cấu hình lỗi (đã mở app module lần nào chưa?): " + t);
+                    if (retry < 3) XposedBridge.log(TAG + "chưa đọc được cấu hình (sẽ thử lại): " + t);
                 }
-                final Bundle cfg = b != null ? b : new Bundle();
+                final Bundle cfg = b;
                 UI.post(new Runnable() {
                     @Override public void run() {
+                        if (cfg == null) { scheduleRetry(ctx); return; }   // giữ nguyên giao diện, không áp mặc định
+                        retry = 0;
+                        lastCfg = cfg;
                         publishHeight(ctx, cfg);
                         for (BarController c : new ArrayList<>(CONTROLLERS)) {
                             try { c.apply(cfg); }
                             catch (Throwable t) { XposedBridge.log(TAG + "apply: " + Log.getStackTraceString(t)); }
                         }
+                        for (KeyguardBarController k : new ArrayList<>(KG)) {
+                            try { k.apply(cfg); }
+                            catch (Throwable t) { XposedBridge.log(TAG + "apply kg: " + Log.getStackTraceString(t)); }
+                        }
                     }
                 });
             }
         });
+    }
+
+    private static void scheduleRetry(final Context ctx) {
+        if (pendingRetry != null) UI.removeCallbacks(pendingRetry);
+        long delay = Math.min(30000L, 2000L << Math.min(retry, 4));
+        retry++;
+        pendingRetry = new Runnable() {
+            @Override public void run() { pendingRetry = null; refresh(ctx); }
+        };
+        UI.postDelayed(pendingRetry, delay);
     }
 
     private static void publishHeight(Context ctx, Bundle b) {

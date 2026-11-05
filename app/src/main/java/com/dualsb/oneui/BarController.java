@@ -30,6 +30,7 @@ import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
@@ -105,6 +106,8 @@ final class BarController {
     private int heightPx;
     private final int[] cells = {-1, -1, -1, -1};   // đồng hồ, thông báo, biểu tượng, Now Bar
     private boolean dumped;
+    private boolean chipFwd;
+    private final List<ProxyView> proxies = new ArrayList<>();
     private String lastChips = "";
     private final Map<String, Object[]> imgCache = new HashMap<>();
 
@@ -247,9 +250,11 @@ final class BarController {
         dateOn = enabled && Config.getBool(b, Config.DATE_ENABLED);
         boolean rg = enabled && Config.getBool(b, Config.RING_ENABLED);
 
-        if (an || lb || tm || dateOn || rg) ensureOverlay();
+        chipFwd = dual && Config.getBool(b, Config.CHIP_FWD);
+        boolean needOverlay = an || lb || tm || dateOn || rg || chipFwd;
+        if (needOverlay) ensureOverlay();
         if (overlay != null) {
-            overlay.setVisibility(an || lb || tm || dateOn || rg ? View.VISIBLE : View.GONE);
+            overlay.setVisibility(needOverlay ? View.VISIBLE : View.GONE);
             analog.setVisibility(an ? View.VISIBLE : View.GONE);
             label.setVisibility(lb ? View.VISIBLE : View.GONE);
             timeClock.setVisibility(tm ? View.VISIBLE : View.GONE);
@@ -591,6 +596,11 @@ final class BarController {
         if (contents == null) return;
         int W = contents.getWidth(), H = contents.getHeight();
         if (W == 0 || H == 0) return;
+        {
+            int pt = contents.getPaddingTop(), pb = contents.getPaddingBottom();
+            float uh = H - pt - pb;
+            SysUiHook.setRows(pt + uh * 0.25f, pt + uh * 0.75f);   // cho thanh trạng thái màn hình khóa dùng chung
+        }
 
         List<Item> clockItems = new ArrayList<>(), sysItems = new ArrayList<>();
         List<Item> notifItems = new ArrayList<>(), chipItems = new ArrayList<>();
@@ -615,6 +625,59 @@ final class BarController {
         } else {
             placeRow(notifItems, nc);
             placeRow(chipItems, cc);
+        }
+        syncProxies(chipItems, chipFwd && cc >= 0);
+    }
+
+    /**
+     * Now Bar đã bị dịch bằng translation nên đặt một "vùng chạm" trong suốt đúng chỗ nó đang hiển thị,
+     * chuyển tiếp toàn bộ thao tác chạm tới chip gốc (để bấm vẫn mở rộng Now Bar như bình thường).
+     */
+    private void syncProxies(List<Item> chips, boolean on) {
+        if (overlay == null) return;
+        int n = on ? chips.size() : 0;
+        while (proxies.size() < n) {
+            ProxyView p = new ProxyView(ctx);
+            overlay.addView(p, new FrameLayout.LayoutParams(1, 1));
+            proxies.add(p);
+        }
+        for (int i = 0; i < proxies.size(); i++) {
+            ProxyView p = proxies.get(i);
+            if (i < n) {
+                Item it = chips.get(i);
+                int[] off = offsetIn(contents, it.v, true);
+                FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) p.getLayoutParams();
+                int hh = it.v.getHeight();
+                if (lp.width != it.w || lp.height != hh || lp.gravity != (Gravity.TOP | Gravity.START)) {
+                    lp.width = it.w; lp.height = hh; lp.gravity = Gravity.TOP | Gravity.START;
+                    p.setLayoutParams(lp);
+                }
+                p.target = it.v;
+                p.setTranslationX(off[0] - overlay.getLeft());
+                p.setTranslationY(off[1] - overlay.getTop());
+                p.setVisibility(View.VISIBLE);
+            } else {
+                p.target = null;
+                p.setVisibility(View.GONE);
+            }
+        }
+    }
+
+    private static final class ProxyView extends View {
+        View target;
+        private int logged;
+        ProxyView(Context c) { super(c); }
+        @Override public boolean onTouchEvent(MotionEvent e) {
+            View t = target;
+            if (t == null || t.getVisibility() != View.VISIBLE) return false;
+            MotionEvent c = MotionEvent.obtain(e);            // toạ độ proxy == toạ độ chip (cùng kích thước)
+            boolean r = t.dispatchTouchEvent(c);
+            c.recycle();
+            if (logged < 4 && e.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                logged++;
+                XposedBridge.log(SysUiHook.TAG + "chạm Now Bar: " + t.getClass().getSimpleName() + " -> " + r);
+            }
+            return r;
         }
     }
 

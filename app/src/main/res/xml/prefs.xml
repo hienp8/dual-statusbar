@@ -18,6 +18,12 @@
             <ListPreference android:key="pos_chip" android:title="Vị trí Now Bar (chip trên thanh trạng thái)"
                 android:entries="@array/pos_entries_chip" android:entryValues="@array/pos_values_chip"
                 android:defaultValue="-2" app:useSimpleSummaryProvider="true" />
+            <SwitchPreferenceCompat android:key="chip_forward_touch" android:title="Sửa lỗi bấm vào Now Bar"
+                android:summary="Chuyển tiếp thao tác chạm tới Now Bar khi nó bị dời vị trí, để bấm vẫn mở rộng được"
+                android:defaultValue="true" />
+            <ListPreference android:key="kg_row" android:title="Màn hình khóa: vị trí biểu tượng gốc"
+                android:entries="@array/kg_row_entries" android:entryValues="@array/kg_row_values"
+                android:defaultValue="2" app:useSimpleSummaryProvider="true" />
             <ListPreference android:key="pos_icons" android:title="Vị trí biểu tượng hệ thống + pin"
                 android:entries="@array/pos_entries_def" android:entryValues="@array/pos_values_def"
                 android:defaultValue="5" app:useSimpleSummaryProvider="true" />
