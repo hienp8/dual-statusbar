@@ -32,7 +32,6 @@ public final class Config {
     public static final String AN_DX = "analog_dx";
     public static final String AN_DY = "analog_dy";
     public static final String AN_SEC = "analog_seconds";
-    public static final String AN_HIDE = "analog_hide_digital";
     public static final String AN_COLOR = "analog_color";
     public static final String BAT_LINE = "battery_line";
     public static final String BAT_H = "battery_line_h";
@@ -107,30 +106,40 @@ public final class Config {
     // thanh điều hướng
     public static final String NAV_ENABLED = "nav_enabled";
     public static final String NAV_HEIGHT = "nav_height_dp";
-    public static final String NAV_ICON = "nav_icon_size";
     public static final String NAV_TINT = "nav_tint";
     public static final String NAV_BACK_KILL = "nav_back_long_kill";
     public static final String KILL_SKIP_SYS = "kill_skip_system";
 
     // phím cử chỉ cạnh màn hình
-    public static final String EDGE_ENABLED = "edge_enabled";
-    public static final String EDGE_SIDE = "edge_side";          // 0 trái, 1 phải
-    public static final String EDGE_Y = "edge_y";                // tâm dải, % chiều cao màn hình
-    public static final String EDGE_H = "edge_h";                // chiều cao dải, %
-    public static final String EDGE_W = "edge_w";                // độ rộng dải, dp
-    public static final String EDGE_ALPHA = "edge_alpha";        // độ hiện của dải chỉ báo, %
     public static final String EDGE_HAPTIC = "edge_haptic";
-    public static final String EDGE_TAP = "edge_tap";
-    public static final String EDGE_LONG = "edge_long";
-    public static final String EDGE_UP = "edge_up";
-    public static final String EDGE_DOWN = "edge_down";
-    public static final String EDGE_IN = "edge_in";
+    public static final String EDGE_PREVIEW = "edge_preview";              // đang chỉnh vị trí: hiện vùng xám nhạt
+    public static final String EDGE_PREVIEW_TS = "edge_preview_ts";
+    public static final String NAV_BACK_SIZE = "nav_back_size";
+    public static final String NAV_HOME_SIZE = "nav_home_size";
+    public static final String NAV_RECENT_SIZE = "nav_recent_size";
+
+    /** Khoá của từng cạnh: side 0 = trái, 1 = phải; name: enabled, y, h, w, alpha, tap, long, up, down, in. */
+    public static String edgeKey(int side, String name) {
+        return "edge_" + (side == 0 ? "l_" : "r_") + name;
+    }
 
     public static int getInt(Bundle b, String key) {
         Object o = b == null ? null : b.get(key);
         if (o instanceof Integer) return (Integer) o;
         if (o instanceof String) {
             try { return Integer.parseInt((String) o); } catch (NumberFormatException ignored) {}
+        }
+        if (key.startsWith("edge_l_") || key.startsWith("edge_r_")) {
+            switch (key.substring(7)) {
+                case "y": return 50;
+                case "h": return 30;
+                case "w": return 16;
+                case "alpha": return 15;
+                case "up": return 3;
+                case "down": return 4;
+                case "in": return 1;
+                default: return 0;
+            }
         }
         switch (key) {
             case HEIGHT: return 44;
@@ -159,14 +168,9 @@ public final class Config {
             case RING_STROKE: return 2;
             case RING_LOW_LEVEL: return 20;
             case NAV_HEIGHT: return 48;
-            case NAV_ICON: return 24;
-            case EDGE_Y: return 50;
-            case EDGE_H: return 30;
-            case EDGE_W: return 16;
-            case EDGE_ALPHA: return 15;
-            case EDGE_UP: return 3;
-            case EDGE_DOWN: return 4;
-            case EDGE_IN: return 1;
+            case NAV_BACK_SIZE:
+            case NAV_HOME_SIZE:
+            case NAV_RECENT_SIZE: return 24;
             default: return 0;
         }
     }
@@ -174,8 +178,9 @@ public final class Config {
     public static boolean getBool(Bundle b, String key) {
         Object o = b == null ? null : b.get(key);
         if (o instanceof Boolean) return (Boolean) o;
+        if (key.startsWith("edge_") && key.endsWith("_enabled")) return false;
+        if (EDGE_PREVIEW.equals(key)) return false;
         switch (key) {
-            case AN_HIDE:
             case DIG_REPLACE:
             case RING_ENABLED:
             case TIME_ENABLED:
@@ -184,7 +189,6 @@ public final class Config {
             case HIDE_NOTIF:
             case NAV_ENABLED:
             case NAV_BACK_KILL:
-            case EDGE_ENABLED:
                 return false;
             default:
                 return true;

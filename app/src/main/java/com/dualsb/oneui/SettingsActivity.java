@@ -292,6 +292,19 @@ public class SettingsActivity extends AppCompatActivity
             }
         }
 
+        /** Đang ở trong mục phím cử chỉ (hoặc mục con của nó). */
+        private boolean isEdgeScreen() {
+            Bundle a = getArguments();
+            String rk = a == null ? null : a.getString(PreferenceFragmentCompat.ARG_PREFERENCE_ROOT);
+            return rk != null && rk.startsWith("scr_edge");
+        }
+
+        /** Bật / tắt vùng xám nhạt trên màn hình để canh vị trí dải cử chỉ. */
+        private void setPreview(boolean on) {
+            prefs().edit().putBoolean(Config.EDGE_PREVIEW, on)
+                    .putLong(Config.EDGE_PREVIEW_TS, System.currentTimeMillis()).apply();
+        }
+
         static void notifyChanged(Context c) {
             c.getContentResolver().notifyChange(Uri.parse(Config.CONFIG_URI), null);
         }
@@ -301,13 +314,19 @@ public class SettingsActivity extends AppCompatActivity
             PreferenceScreen ps = getPreferenceScreen();
             if (ps != null && ps.getTitle() != null) requireActivity().setTitle(ps.getTitle());
             prefs().registerOnSharedPreferenceChangeListener(this);
+            if (isEdgeScreen()) setPreview(true);
         }
         @Override public void onPause() {
             super.onPause();
+            if (isEdgeScreen()) setPreview(false);
             prefs().unregisterOnSharedPreferenceChangeListener(this);
         }
         @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
             if ("known_slots".equals(key)) return;
+            if (key != null && key.startsWith("edge_") && !Config.EDGE_PREVIEW.equals(key)
+                    && !Config.EDGE_PREVIEW_TS.equals(key) && isEdgeScreen()) {
+                sp.edit().putLong(Config.EDGE_PREVIEW_TS, System.currentTimeMillis()).apply();   // giữ vùng xem trước
+            }
             notifyChanged(requireContext());
         }
     }

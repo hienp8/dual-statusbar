@@ -2,6 +2,7 @@ package com.dualsb.oneui;
 
 import android.animation.ArgbEvaluator;
 import android.content.Context;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.ImageDecoder;
 import android.graphics.PorterDuff;
@@ -48,6 +49,7 @@ final class NavStyle {
             "com.android.systemui.statusbar.phone.KeyButtonView"};
 
     private static volatile Bundle cfg;
+    private static Class<?> kbClass;
     private static final Set<View> BUTTONS = Collections.newSetFromMap(new WeakHashMap<View, Boolean>());
     private static final Map<View, Holder> HOLDERS = new WeakHashMap<>();
     private static final Map<View, Press> PRESS = new WeakHashMap<>();
@@ -73,6 +75,25 @@ final class NavStyle {
             if (kb != null) break;
         }
         if (kb == null) { XposedBridge.log(TAG + "KeyButtonView not found (thanh điều hướng)"); return; }
+        kbClass = kb;
+
+        // Bỏ qua bước vẽ biểu tượng gốc của những nút đã được thay ảnh (Samsung bỏ qua cách làm mờ nên chặn hẳn bước vẽ).
+        // Phần nền / hiệu ứng nhấn và overlay (biểu tượng mới) vẫn được vẽ bình thường.
+        XC_MethodHook skipDraw = new XC_MethodHook() {
+            @Override protected void beforeHookedMethod(MethodHookParam p) {
+                Class<?> k = kbClass;
+                Object o = p.thisObject;
+                if (k != null && k.isInstance(o) && HOLDERS.containsKey(o)) p.setResult(null);
+            }
+        };
+        try {
+            XposedHelpers.findAndHookMethod(ImageView.class, "onDraw", Canvas.class, skipDraw);
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + "không hook được ImageView.onDraw: " + t);
+        }
+        try {
+            XposedHelpers.findAndHookMethod(kb, "onDraw", Canvas.class, skipDraw);   // nếu nút tự override onDraw
+        } catch (Throwable ignored) {}
 
         XposedBridge.hookAllConstructors(kb, new XC_MethodHook() {
             @Override protected void afterHookedMethod(MethodHookParam p) {
@@ -120,6 +141,12 @@ final class NavStyle {
         return null;
     }
 
+    private static String sizeKey(String name) {
+        if ("nav_back".equals(name)) return Config.NAV_BACK_SIZE;
+        if ("nav_home".equals(name)) return Config.NAV_HOME_SIZE;
+        return Config.NAV_RECENT_SIZE;
+    }
+
     private static void attach(final View v) {
         if (!(v instanceof ImageView)) return;
         BUTTONS.add(v);
@@ -153,24 +180,24 @@ final class NavStyle {
         if (!on) {
             if (h != null) {
                 v.getOverlay().remove(h.icon);
-                iv.setImageAlpha(255);
+                v.invalidate();
                 HOLDERS.remove(v);
             }
             return;
         }
         long stamp = b.getLong("img_" + name, 0);
         float d = v.getResources().getDisplayMetrics().density;
-        int px = Math.max(1, Math.round(Config.getInt(b, Config.NAV_ICON) * d));
+        int px = Math.max(1, Math.round(Config.getInt(b, sizeKey(name)) * d));
         if (h == null || h.stamp != stamp || h.px != px) {
             if (h != null) v.getOverlay().remove(h.icon);
             Drawable icon = decode(v.getContext(), name, px);
-            if (icon == null) { iv.setImageAlpha(255); HOLDERS.remove(v); return; }
+            if (icon == null) { HOLDERS.remove(v); return; }
             float keepDark = h == null ? 0f : h.dark;
             h = new Holder();
             h.icon = icon; h.stamp = stamp; h.px = px; h.dark = keepDark;
             v.getOverlay().add(icon);
             HOLDERS.put(v, h);
-            iv.setImageAlpha(0);                          // ẩn biểu tượng gốc, vẫn giữ nguyên nó bên dưới
+            v.invalidate();                               // biểu tượng gốc sẽ bị bỏ qua khi vẽ (hook onDraw)
         }
         h.tint = Config.getString(b, Config.NAV_TINT);
         applyTint(h);

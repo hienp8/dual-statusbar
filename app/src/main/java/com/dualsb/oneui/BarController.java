@@ -344,8 +344,7 @@ final class BarController {
         }
 
         // ẩn đồng hồ số gốc / pin gốc (chỉ làm mờ, không đổi cấu trúc view của Samsung)
-        boolean hideClock = enabled && (Config.getBool(b, Config.DIG_REPLACE)
-                || (an && Config.getBool(b, Config.AN_HIDE)));
+        boolean hideClock = enabled && Config.getBool(b, Config.DIG_REPLACE);
         if (clock != null) clock.setAlpha(hideClock ? 0f : 1f);
         moduleOn = enabled;
         hideNotif = Config.getBool(b, Config.HIDE_NOTIF);

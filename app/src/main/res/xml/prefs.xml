@@ -41,7 +41,7 @@
     </PreferenceScreen>
 
     <PreferenceScreen android:key="scr_time" android:title="Giờ" android:summary="Đồng hồ số tách riêng khỏi ngày">
-            <SwitchPreferenceCompat android:key="digital_replace" android:title="Ẩn đồng hồ số gốc của Samsung" android:summary="Bật khi muốn dùng giờ / ngày riêng của module" android:defaultValue="false" />
+            <SwitchPreferenceCompat android:key="digital_replace" android:title="Ẩn đồng hồ số gốc của Samsung" android:summary="Áp dụng cho mọi nơi: giờ, ngày, đồng hồ analog. Bật khi bạn dùng giờ riêng của module hoặc đồng hồ analog" android:defaultValue="false" />
             <SwitchPreferenceCompat android:key="time_enabled" android:title="Hiện giờ" android:defaultValue="false" />
             <ListPreference android:key="time_format" android:title="Kiểu giờ"
                 android:entries="@array/time_fmt_entries" android:entryValues="@array/time_fmt_values"
@@ -190,7 +190,6 @@
             <SeekBarPreference android:key="analog_dy" android:title="Dịch dọc (dp)"
                 app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
             <SwitchPreferenceCompat android:key="analog_seconds" android:title="Kim giây" android:defaultValue="true" />
-            <SwitchPreferenceCompat android:key="analog_hide_digital" android:title="Ẩn đồng hồ số gốc" android:defaultValue="false" />
             <ListPreference android:key="analog_color" android:title="Màu kim mặc định (khi không có ảnh kim)"
                 android:entries="@array/color_auto_entries" android:entryValues="@array/color_auto_values"
                 android:defaultValue="auto" app:useSimpleSummaryProvider="true" />
@@ -215,50 +214,79 @@
             <SwitchPreferenceCompat android:key="nav_enabled" android:title="Tuỳ chỉnh thanh điều hướng" android:summary="Dùng cho điều hướng 3 nút. Đổi chiều cao nên khởi động lại máy" android:defaultValue="false" />
             <SeekBarPreference android:key="nav_height_dp" android:title="Chiều cao thanh (dp)"
                 app:min="24" android:max="96" app:showSeekBarValue="true" android:defaultValue="48" />
-            <SeekBarPreference android:key="nav_icon_size" android:title="Kích thước biểu tượng (dp)"
-                app:min="12" android:max="48" app:showSeekBarValue="true" android:defaultValue="24" />
             <ListPreference android:key="nav_tint" android:title="Màu biểu tượng"
                 android:entries="@array/nav_tint_entries" android:entryValues="@array/nav_tint_values"
                 android:defaultValue="orig" app:useSimpleSummaryProvider="true" />
             <Preference android:key="pick_nav_back" android:title="Chọn ảnh nút Back" />
             <Preference android:key="clear_nav_back" android:title="Xoá ảnh nút Back" />
+            <SeekBarPreference android:key="nav_back_size" android:title="Kích thước nút Back (dp)"
+                app:min="12" android:max="96" app:showSeekBarValue="true" android:defaultValue="24" />
             <Preference android:key="pick_nav_home" android:title="Chọn ảnh nút Home" android:summary="Hỗ trợ file GIF động" />
             <Preference android:key="clear_nav_home" android:title="Xoá ảnh nút Home" />
+            <SeekBarPreference android:key="nav_home_size" android:title="Kích thước nút Home / GIF (dp)"
+                app:min="12" android:max="96" app:showSeekBarValue="true" android:defaultValue="24" />
             <Preference android:key="pick_nav_recent" android:title="Chọn ảnh nút Recents" />
             <Preference android:key="clear_nav_recent" android:title="Xoá ảnh nút Recents" />
+            <SeekBarPreference android:key="nav_recent_size" android:title="Kích thước nút Recents (dp)"
+                app:min="12" android:max="96" app:showSeekBarValue="true" android:defaultValue="24" />
             <SwitchPreferenceCompat android:key="nav_back_long_kill" android:title="Nhấn giữ Back: đóng ứng dụng chạy nền" android:summary="Đóng toàn bộ ứng dụng đang chạy ẩn (không đóng ứng dụng đang dùng)" android:defaultValue="false" />
             <SwitchPreferenceCompat android:key="kill_skip_system" android:title="Không đóng ứng dụng hệ thống" android:defaultValue="true" />
     </PreferenceScreen>
 
-    <PreferenceScreen android:key="scr_edge" android:title="Phím cử chỉ cạnh màn hình" android:summary="Dải cảm ứng ở cạnh trái / phải, mỗi hướng vuốt một chức năng">
-            <SwitchPreferenceCompat android:key="edge_enabled" android:title="Bật phím cử chỉ cạnh" android:summary="Dải này chặn cảm ứng của ứng dụng bên dưới trong vùng của nó" android:defaultValue="false" />
-            <ListPreference android:key="edge_side" android:title="Cạnh màn hình"
-                android:entries="@array/edge_side_entries" android:entryValues="@array/edge_side_values"
-                android:defaultValue="0" app:useSimpleSummaryProvider="true" />
-            <SeekBarPreference android:key="edge_y" android:title="Vị trí dọc (% chiều cao màn hình)"
+    <PreferenceScreen android:key="scr_edge" android:title="Phím cử chỉ cạnh màn hình" android:summary="Dải cảm ứng ở cạnh trái và / hoặc cạnh phải, mỗi hướng vuốt một chức năng">
+            <SwitchPreferenceCompat android:key="edge_haptic" android:title="Rung nhẹ khi kích hoạt" android:summary="Dùng chung cho cả hai cạnh. Dải này chặn cảm ứng của ứng dụng bên dưới trong vùng của nó" android:defaultValue="true" />
+        <PreferenceScreen android:key="scr_edge_l" android:title="Cạnh trái" android:summary="Vị trí, kích thước và chức năng từng hướng vuốt">
+            <SwitchPreferenceCompat android:key="edge_l_enabled" android:title="Bật phím cử chỉ cạnh trái" android:summary="Khi đang chỉnh ở đây, vùng vuốt hiện mờ xám nhạt trên màn hình" android:defaultValue="false" />
+            <SeekBarPreference android:key="edge_l_y" android:title="Vị trí dọc (% chiều cao màn hình)"
                 app:min="0" android:max="100" app:showSeekBarValue="true" android:defaultValue="50" />
-            <SeekBarPreference android:key="edge_h" android:title="Chiều cao dải (%)"
+            <SeekBarPreference android:key="edge_l_h" android:title="Chiều cao dải (%)"
                 app:min="10" android:max="100" app:showSeekBarValue="true" android:defaultValue="30" />
-            <SeekBarPreference android:key="edge_w" android:title="Độ rộng dải (dp)"
+            <SeekBarPreference android:key="edge_l_w" android:title="Độ rộng dải (dp)"
                 app:min="6" android:max="60" app:showSeekBarValue="true" android:defaultValue="16" />
-            <SeekBarPreference android:key="edge_alpha" android:title="Độ hiện của dải chỉ báo (%)"
+            <SeekBarPreference android:key="edge_l_alpha" android:title="Độ hiện của dải chỉ báo (%)"
                 app:min="0" android:max="60" app:showSeekBarValue="true" android:defaultValue="15" />
-            <SwitchPreferenceCompat android:key="edge_haptic" android:title="Rung nhẹ khi kích hoạt" android:defaultValue="true" />
-            <ListPreference android:key="edge_tap" android:title="Chạm"
+            <ListPreference android:key="edge_l_tap" android:title="Chạm"
                 android:entries="@array/action_entries" android:entryValues="@array/action_values"
                 android:defaultValue="0" app:useSimpleSummaryProvider="true" />
-            <ListPreference android:key="edge_long" android:title="Nhấn giữ"
+            <ListPreference android:key="edge_l_long" android:title="Nhấn giữ"
                 android:entries="@array/action_entries" android:entryValues="@array/action_values"
                 android:defaultValue="0" app:useSimpleSummaryProvider="true" />
-            <ListPreference android:key="edge_up" android:title="Vuốt lên"
+            <ListPreference android:key="edge_l_up" android:title="Vuốt lên"
                 android:entries="@array/action_entries" android:entryValues="@array/action_values"
                 android:defaultValue="3" app:useSimpleSummaryProvider="true" />
-            <ListPreference android:key="edge_down" android:title="Vuốt xuống"
+            <ListPreference android:key="edge_l_down" android:title="Vuốt xuống"
                 android:entries="@array/action_entries" android:entryValues="@array/action_values"
                 android:defaultValue="4" app:useSimpleSummaryProvider="true" />
-            <ListPreference android:key="edge_in" android:title="Vuốt vào trong"
+            <ListPreference android:key="edge_l_in" android:title="Vuốt vào trong"
                 android:entries="@array/action_entries" android:entryValues="@array/action_values"
                 android:defaultValue="1" app:useSimpleSummaryProvider="true" />
+        </PreferenceScreen>
+        <PreferenceScreen android:key="scr_edge_r" android:title="Cạnh phải" android:summary="Vị trí, kích thước và chức năng từng hướng vuốt">
+            <SwitchPreferenceCompat android:key="edge_r_enabled" android:title="Bật phím cử chỉ cạnh phải" android:summary="Khi đang chỉnh ở đây, vùng vuốt hiện mờ xám nhạt trên màn hình" android:defaultValue="false" />
+            <SeekBarPreference android:key="edge_r_y" android:title="Vị trí dọc (% chiều cao màn hình)"
+                app:min="0" android:max="100" app:showSeekBarValue="true" android:defaultValue="50" />
+            <SeekBarPreference android:key="edge_r_h" android:title="Chiều cao dải (%)"
+                app:min="10" android:max="100" app:showSeekBarValue="true" android:defaultValue="30" />
+            <SeekBarPreference android:key="edge_r_w" android:title="Độ rộng dải (dp)"
+                app:min="6" android:max="60" app:showSeekBarValue="true" android:defaultValue="16" />
+            <SeekBarPreference android:key="edge_r_alpha" android:title="Độ hiện của dải chỉ báo (%)"
+                app:min="0" android:max="60" app:showSeekBarValue="true" android:defaultValue="15" />
+            <ListPreference android:key="edge_r_tap" android:title="Chạm"
+                android:entries="@array/action_entries" android:entryValues="@array/action_values"
+                android:defaultValue="0" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="edge_r_long" android:title="Nhấn giữ"
+                android:entries="@array/action_entries" android:entryValues="@array/action_values"
+                android:defaultValue="0" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="edge_r_up" android:title="Vuốt lên"
+                android:entries="@array/action_entries" android:entryValues="@array/action_values"
+                android:defaultValue="3" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="edge_r_down" android:title="Vuốt xuống"
+                android:entries="@array/action_entries" android:entryValues="@array/action_values"
+                android:defaultValue="4" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="edge_r_in" android:title="Vuốt vào trong"
+                android:entries="@array/action_entries" android:entryValues="@array/action_values"
+                android:defaultValue="1" app:useSimpleSummaryProvider="true" />
+        </PreferenceScreen>
     </PreferenceScreen>
 
     <PreferenceScreen android:key="scr_backup" android:title="Sao lưu &amp; khôi phục" android:summary="Xuất / nhập toàn bộ cài đặt và ảnh">
