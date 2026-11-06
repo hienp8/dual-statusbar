@@ -13,4 +13,4 @@ jobs:
         with: { gradle-version: '8.9' }
       - run: gradle assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
-        with: { name: DualLineSB-OneUI7-apk, path: app/build/outputs/apk/debug/*.apk }
+        with: { name: "Dualline SB", path: app/build/outputs/apk/debug/*.apk }
