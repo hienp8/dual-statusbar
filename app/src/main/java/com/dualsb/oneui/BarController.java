@@ -13,6 +13,7 @@ import android.net.wifi.WifiManager;
 import android.telephony.ServiceState;
 import android.telephony.SignalStrength;
 import android.telephony.TelephonyCallback;
+import android.telephony.TelephonyDisplayInfo;
 import android.view.ViewTreeObserver;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
@@ -106,6 +107,11 @@ final class BarController {
     private int heightPx;
     private final int[] cells = {-1, -1, -1, -1};   // đồng hồ, thông báo, biểu tượng, Now Bar
     private boolean dumped;
+    private boolean ringOn, hideBattery, hideWifi, hideSig;
+    private final Set<View> hidden = new HashSet<>();
+    private final List<View> wifiViews = new ArrayList<>(), mobileViews = new ArrayList<>();
+    private String lastIcons = "";
+    private String netType = "";
     private boolean chipFwd;
     private final List<ProxyView> proxies = new ArrayList<>();
     private String lastChips = "";
@@ -175,6 +181,13 @@ final class BarController {
                     lastAuto = c;
                     root.post(new Runnable() { @Override public void run() { applyColors(); } });
                 }
+            }
+        });
+
+        root.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+            @Override public boolean onPreDraw() {
+                if (ringOn || !hidden.isEmpty()) applyHides();
+                return true;
             }
         });
 
@@ -302,19 +315,22 @@ final class BarController {
             }
             if (rg) {
                 int size = Math.round(Config.getInt(b, Config.RING_SIZE) * d);
-                put(ring, Config.getInt(b, Config.RING_POS), -2, size,
+                put(ring, Config.getInt(b, Config.RING_POS), size, size,
                         Config.getInt(b, Config.RING_DX) * d, Config.getInt(b, Config.RING_DY) * d);
+                boolean showWifi = Config.getBool(b, Config.RING_WIFI);
+                boolean showType = Config.getBool(b, Config.RING_NETTYPE);
+                boolean showDots = Config.getBool(b, Config.RING_SIGNAL);
                 ring.configure(Math.max(1f, Config.getInt(b, Config.RING_STROKE) * d),
-                        Config.getBool(b, Config.RING_PERCENT),
+                        Config.getBool(b, Config.RING_PERCENT), Config.getBool(b, Config.RING_BOLT),
+                        Config.getInt(b, Config.RING_PCT_H),
                         colorOf(b, Config.RING_COLOR),
                         parseColor(Config.getString(b, Config.RING_COL_CHG), 0xFF4CAF50),
                         parseColor(Config.getString(b, Config.RING_COL_SAVER), 0xFFFFC107),
                         parseColor(Config.getString(b, Config.RING_COL_LOW), 0xFFE53935),
                         Config.getInt(b, Config.RING_LOW_LEVEL),
-                        Config.getBool(b, Config.RING_WIFI), Config.getBool(b, Config.RING_SIGNAL),
-                        Config.getInt(b, Config.RING_SIG_STYLE));
+                        showWifi, showType, showDots);
                 ring.setState(batLevel, batCharging, batSaver);
-                if (Config.getBool(b, Config.RING_WIFI) || Config.getBool(b, Config.RING_SIGNAL)) ensureNet();
+                if (showWifi || showType || showDots) ensureNet();
                 pushNet();
             }
         }
@@ -323,8 +339,12 @@ final class BarController {
         boolean hideClock = enabled && (Config.getBool(b, Config.DIG_REPLACE)
                 || (an && Config.getBool(b, Config.AN_HIDE)));
         if (clock != null) clock.setAlpha(hideClock ? 0f : 1f);
-        if (stockBattery != null)
-            stockBattery.setAlpha(rg && Config.getBool(b, Config.RING_HIDE_STOCK) ? 0f : 1f);
+        ringOn = rg;
+        hideBattery = Config.getBool(b, Config.RING_HIDE_STOCK);
+        hideWifi = Config.getBool(b, Config.RING_HIDE_WIFI);
+        hideSig = Config.getBool(b, Config.RING_HIDE_SIG);
+        if (rg && (hideWifi || hideSig)) scanSysIcons();
+        applyHides();
 
         // đường pin ở viền dưới (foreground của root)
         if (enabled && Config.getBool(b, Config.BAT_LINE)) {
@@ -427,9 +447,54 @@ final class BarController {
         analog.setHandColor(colorOf(b, Config.AN_COLOR));
     }
 
+    // ---- ẩn biểu tượng Wi-Fi / sóng / pin gốc của hệ thống khi dùng khối vòng
+    private void scanSysIcons() {
+        wifiViews.clear();
+        mobileViews.clear();
+        if (sysGroup != null) collectIcons(sysGroup);
+        StringBuilder sb = new StringBuilder();
+        for (View v : wifiViews) sb.append("wifi:").append(idName(v)).append('/').append(v.getClass().getSimpleName()).append(' ');
+        for (View v : mobileViews) sb.append("mobile:").append(idName(v)).append('/').append(v.getClass().getSimpleName()).append(' ');
+        String sig = sb.toString();
+        if (!sig.equals(lastIcons)) {
+            lastIcons = sig;
+            XposedBridge.log(TAG + "biểu tượng hệ thống sẽ ẩn: " + (sig.isEmpty() ? "(không tìm thấy)" : sig));
+        }
+    }
+
+    private void collectIcons(View v) {
+        String n = (idName(v) + " " + v.getClass().getSimpleName()).toLowerCase();
+        if (n.contains("airplane") || n.contains("hotspot")) return;
+        if (n.contains("wifi")) { wifiViews.add(v); return; }
+        if (n.contains("mobile") || n.contains("signal") || n.contains("cellular")) { mobileViews.add(v); return; }
+        if (v instanceof ViewGroup) {
+            ViewGroup g = (ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) collectIcons(g.getChildAt(i));
+        }
+    }
+
+    private void setHidden(View v, boolean hide) {
+        if (v == null) return;
+        if (hide) {
+            if (v.getAlpha() != 0f) v.setAlpha(0f);
+            hidden.add(v);
+        } else if (hidden.remove(v)) {
+            v.setAlpha(1f);
+        }
+    }
+
+    private void applyHides() {
+        setHidden(stockBattery, ringOn && hideBattery);
+        for (View v : wifiViews) setHidden(v, ringOn && hideWifi);
+        for (View v : mobileViews) setHidden(v, ringOn && hideSig);
+        if (!ringOn && !hidden.isEmpty()) {          // tắt khối vòng: trả lại hết
+            for (View v : new ArrayList<>(hidden)) { v.setAlpha(1f); hidden.remove(v); }
+        }
+    }
+
     // ---- Wi-Fi + sóng di động cho khối pin vòng
     private void pushNet() {
-        if (ring != null) ring.setNet(inService ? sigLevel : 0, wifiLevel);
+        if (ring != null) ring.setNet(inService ? sigLevel : -1, wifiLevel, netType);
     }
 
     private void ensureNet() {
@@ -458,14 +523,47 @@ final class BarController {
             TelephonyManager tm = (TelephonyManager) ctx.getSystemService(Context.TELEPHONY_SERVICE);
             int sub = SubscriptionManager.getDefaultDataSubscriptionId();
             if (sub != SubscriptionManager.INVALID_SUBSCRIPTION_ID) tm = tm.createForSubscriptionId(sub);
+            try { netType = typeName(tm.getDataNetworkType(), TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NONE); }
+            catch (Throwable ignored) {}
             tm.registerTelephonyCallback(ctx.getMainExecutor(), new CellCb());
         } catch (Throwable t) {
             XposedBridge.log(TAG + "cell callback: " + Log.getStackTraceString(t));
         }
     }
 
+    private static String typeName(int type, int override) {
+        if (override == TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_NSA
+                || override == TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_ADVANCED) return "5G";
+        switch (type) {
+            case TelephonyManager.NETWORK_TYPE_NR: return "5G";
+            case TelephonyManager.NETWORK_TYPE_LTE: return "4G";
+            case TelephonyManager.NETWORK_TYPE_HSPAP:
+            case TelephonyManager.NETWORK_TYPE_HSPA:
+            case TelephonyManager.NETWORK_TYPE_HSDPA:
+            case TelephonyManager.NETWORK_TYPE_HSUPA:
+            case TelephonyManager.NETWORK_TYPE_UMTS:
+            case TelephonyManager.NETWORK_TYPE_TD_SCDMA:
+            case TelephonyManager.NETWORK_TYPE_EVDO_0:
+            case TelephonyManager.NETWORK_TYPE_EVDO_A:
+            case TelephonyManager.NETWORK_TYPE_EVDO_B:
+                return "3G";
+            case TelephonyManager.NETWORK_TYPE_EDGE:
+            case TelephonyManager.NETWORK_TYPE_GPRS:
+            case TelephonyManager.NETWORK_TYPE_CDMA:
+            case TelephonyManager.NETWORK_TYPE_1xRTT:
+            case TelephonyManager.NETWORK_TYPE_IDEN:
+                return "2G";
+            default: return "";
+        }
+    }
+
     private final class CellCb extends TelephonyCallback implements
-            TelephonyCallback.SignalStrengthsListener, TelephonyCallback.ServiceStateListener {
+            TelephonyCallback.SignalStrengthsListener, TelephonyCallback.ServiceStateListener,
+            TelephonyCallback.DisplayInfoListener {
+        @Override public void onDisplayInfoChanged(TelephonyDisplayInfo info) {
+            netType = typeName(info.getNetworkType(), info.getOverrideNetworkType());
+            pushNet();
+        }
         @Override public void onSignalStrengthsChanged(SignalStrength s) {
             sigLevel = Math.max(0, Math.min(4, s.getLevel()));
             pushNet();
@@ -577,6 +675,7 @@ final class BarController {
     // ------------------------------------------------------------------ bố cục lưới 3x3
 
     private void onLayout() {
+        if (ringOn && (hideWifi || hideSig)) scanSysIcons();
         if (heightPx > 0) {
             ViewGroup.LayoutParams lp = root.getLayoutParams();
             if (lp != null && lp.height != heightPx) { lp.height = heightPx; root.setLayoutParams(lp); }

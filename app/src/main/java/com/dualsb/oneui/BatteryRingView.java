@@ -9,49 +9,57 @@ import android.graphics.Typeface;
 import android.view.View;
 
 /**
- * Một khối gồm: [sóng di động] [Wi-Fi] [vòng pin].
- * Vòng pin: % nằm giữa; xanh khi sạc (khe hở phía trên + tia sét), vàng khi tiết kiệm pin, đỏ khi yếu.
- * Wi-Fi: 3 cung sáng theo mức sóng; sóng di động: 4 thanh (hoặc 4 chấm) sáng theo mức sóng.
+ * Pin + Wi-Fi + sóng trong MỘT vòng tròn:
+ *  - Cung vòng phía trên (270°) là mức pin, chạy theo chiều kim đồng hồ từ dưới-trái.
+ *  - Trên cùng, giữa: số % (hoặc tia sét khi sạc). Cung vòng được chừa khe hở đúng chỗ đặt số.
+ *  - Phía dưới: 5 chấm xếp theo đường cong biểu thị sóng di động.
+ *  - Giữa vòng: biểu tượng Wi-Fi (khi đang dùng Wi-Fi) hoặc chữ 5G/4G/3G/2G.
  */
 final class BatteryRingView extends View {
     private final Paint track = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint arc = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint text2 = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint net = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF oval = new RectF();
-    private final RectF rect = new RectF();
     private final Path bolt = new Path();
 
     private int level = 100;
-    private boolean charging, saver, showPercent = true;
+    private boolean charging, saver;
+    private boolean showPercent = true, showBolt = true;
     private float stroke = 4f;
     private int colNormal = 0xFFFFFFFF, colChg = 0xFF4CAF50, colSaver = 0xFFFFC107, colLow = 0xFFE53935;
     private int lowLevel = 20;
-    private boolean showWifi = true, showSig = true;
-    private int sigStyle;
-    private int sigLevel = 0;     // 0..4
-    private int wifiLevel = -1;   // -1 = không kết nối (ẩn), 0..4
+    private int pctHeight = 80;                       // 0..100: độ cao của số % so với tâm vòng
+    private boolean showWifi = true, showNetType = true, showDots = true;
+    private int sigLevel = -1;                         // -1 = mất sóng, 0..4
+    private int wifiLevel = -1;                        // -1 = không dùng Wi-Fi, 0..4
+    private String netType = "";
 
     BatteryRingView(Context c) {
         super(c);
         track.setStyle(Paint.Style.STROKE);
         arc.setStyle(Paint.Style.STROKE);
         arc.setStrokeCap(Paint.Cap.ROUND);
+        track.setStrokeCap(Paint.Cap.ROUND);
         text.setTextAlign(Paint.Align.CENTER);
         text.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+        text2.setTextAlign(Paint.Align.CENTER);
+        text2.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
         fill.setStyle(Paint.Style.FILL);
         net.setStyle(Paint.Style.FILL);
         net.setStrokeCap(Paint.Cap.ROUND);
     }
 
-    void configure(float strokePx, boolean showPercent, int normal, int chg, int saver, int low, int lowLevel,
-                   boolean showWifi, boolean showSig, int sigStyle) {
-        this.stroke = strokePx; this.showPercent = showPercent;
+    void configure(float strokePx, boolean showPercent, boolean showBolt, int pctHeight,
+                   int normal, int chg, int saver, int low, int lowLevel,
+                   boolean showWifi, boolean showNetType, boolean showDots) {
+        this.stroke = strokePx; this.showPercent = showPercent; this.showBolt = showBolt;
+        this.pctHeight = Math.max(0, Math.min(100, pctHeight));
         this.colNormal = normal; this.colChg = chg; this.colSaver = saver; this.colLow = low;
         this.lowLevel = lowLevel;
-        this.showWifi = showWifi; this.showSig = showSig; this.sigStyle = sigStyle;
-        requestLayout();
+        this.showWifi = showWifi; this.showNetType = showNetType; this.showDots = showDots;
         invalidate();
     }
 
@@ -62,26 +70,9 @@ final class BatteryRingView extends View {
         invalidate();
     }
 
-    void setNet(int sig, int wifi) {
-        boolean relayout = (wifi >= 0) != (wifiLevel >= 0);
-        sigLevel = sig; wifiLevel = wifi;
-        if (relayout) requestLayout();
+    void setNet(int sig, int wifi, String type) {
+        sigLevel = sig; wifiLevel = wifi; netType = type == null ? "" : type;
         invalidate();
-    }
-
-    private boolean wifiShown() { return showWifi && wifiLevel >= 0; }
-    private float sigW(float s) { return sigStyle == 1 ? 1.04f * s : 0.77f * s; }
-    private float wifiW(float s) { return 0.85f * s; }
-    private float gap(float s) { return 0.25f * s; }
-
-    @Override protected void onMeasure(int wSpec, int hSpec) {
-        int h = MeasureSpec.getSize(hSpec);
-        if (h <= 0) h = 48;
-        float s = h;
-        float w = s;
-        if (showSig) w += sigW(s) + gap(s);
-        if (wifiShown()) w += wifiW(s) + gap(s);
-        setMeasuredDimension((int) Math.ceil(w), h);
     }
 
     private int ringColor() {
@@ -92,100 +83,103 @@ final class BatteryRingView extends View {
     }
 
     @Override protected void onDraw(Canvas c) {
-        float s = getHeight();
+        float s = Math.min(getWidth(), getHeight());
         if (s <= 0) return;
-        float cy = s / 2f;
-        float x = 0;
-
-        if (showSig) {
-            drawSignal(c, x, cy, s);
-            x += sigW(s) + gap(s);
-        }
-        if (wifiShown()) {
-            drawWifi(c, x, cy, s);
-            x += wifiW(s) + gap(s);
-        }
-        drawRing(c, x + s / 2f, cy, s);
-    }
-
-    private void drawSignal(Canvas c, float x, float cy, float s) {
-        net.setColor(colNormal);
-        if (sigStyle == 1) {
-            float d = 0.2f * s, g = 0.08f * s;
-            for (int i = 0; i < 4; i++) {
-                net.setAlpha(i < sigLevel ? 255 : 70);
-                c.drawCircle(x + d / 2f + i * (d + g), cy, d / 2f, net);
-            }
-        } else {
-            float bw = 0.14f * s, g = 0.07f * s, hs = 0.62f * s;
-            for (int i = 0; i < 4; i++) {
-                net.setAlpha(i < sigLevel ? 255 : 70);
-                float hh = hs * (0.4f + 0.2f * i);
-                float left = x + i * (bw + g);
-                rect.set(left, cy + hs / 2f - hh, left + bw, cy + hs / 2f);
-                c.drawRoundRect(rect, bw / 2f, bw / 2f, net);
-            }
-        }
-    }
-
-    private void drawWifi(Canvas c, float x, float cy, float s) {
-        float ox = x + wifiW(s) / 2f, oy = cy + 0.3f * s;
-        int lit = Math.round(wifiLevel * 3f / 4f);
-        float sw = Math.max(1.5f, stroke * 0.9f);
-        net.setStyle(Paint.Style.STROKE);
-        net.setStrokeWidth(sw);
-        net.setColor(colNormal);
-        for (int k = 1; k <= 3; k++) {
-            float r = k * 0.2f * s;
-            oval.set(ox - r, oy - r, ox + r, oy + r);
-            net.setAlpha(k <= lit ? 255 : 70);
-            c.drawArc(oval, -135f, 90f, false, net);
-        }
-        net.setStyle(Paint.Style.FILL);
-        net.setAlpha(255);
-        c.drawCircle(ox, oy, 0.075f * s, net);
-    }
-
-    private void drawRing(Canvas c, float cx, float cy, float s) {
-        float r = s / 2f - stroke / 2f - 0.5f;
+        float cx = getWidth() / 2f, cy = getHeight() / 2f;
+        float r = s / 2f - stroke / 2f - s * 0.06f;
         if (r <= 0) return;
         int col = ringColor();
 
+        // ---- nhãn trên cùng: số % hoặc tia sét
+        boolean bolted = charging && showBolt;
+        boolean label = bolted || showPercent;
+        String t = String.valueOf(level);
+        float textSize = s * (level >= 100 ? 0.27f : 0.34f);
+        text.setTextSize(textSize);
+        float tw = bolted ? s * 0.22f : text.measureText(t);
+        float th = bolted ? s * 0.30f : textSize * 0.75f;
+        float ly = cy - r * (pctHeight / 100f) * 1.1f;       // tâm của nhãn
+
+        float gap = 0f;
+        if (label && ly - th / 2f <= cy - r + stroke && ly + th / 2f >= cy - r - stroke) {
+            gap = (float) Math.toDegrees(2 * Math.asin(Math.min(1f, (tw / 2f + stroke) / r)));
+            gap = Math.min(gap, 120f);
+        }
+
+        // ---- cung pin (270°, chừa đáy cho chấm sóng, chừa đỉnh cho nhãn)
         oval.set(cx - r, cy - r, cx + r, cy + r);
         track.setStrokeWidth(stroke);
         arc.setStrokeWidth(stroke);
         track.setColor(col);
         track.setAlpha(60);
         arc.setColor(col);
+        float seg = 135f - gap / 2f;
+        float s1 = 135f, s2 = 270f + gap / 2f;
+        c.drawArc(oval, s1, seg, false, track);
+        c.drawArc(oval, s2, seg, false, track);
+        float fillDeg = 2f * seg * Math.max(0, Math.min(100, level)) / 100f;
+        if (fillDeg > 0.5f) c.drawArc(oval, s1, Math.min(fillDeg, seg), false, arc);
+        if (fillDeg > seg) c.drawArc(oval, s2, fillDeg - seg, false, arc);
 
-        float gap = charging ? 24f : 0f;               // khe hở phía trên khi sạc
-        float start = -90f + gap;
-        float span = 360f - 2f * gap;
-        c.drawArc(oval, start, span, false, track);
-        float sweep = span * Math.max(0, Math.min(100, level)) / 100f;
-        if (sweep > 0.5f) c.drawArc(oval, start, sweep, false, arc);
-
-        if (showPercent) {
-            String t = String.valueOf(level);
-            text.setColor(col);
-            text.setTextSize(s * (t.length() >= 3 ? 0.30f : 0.40f));
-            Paint.FontMetrics fm = text.getFontMetrics();
-            c.drawText(t, cx, cy - (fm.ascent + fm.descent) / 2f, text);
+        if (label) {
+            if (bolted) {
+                float bs = s * 0.30f;
+                float left = cx - bs / 2f, top = ly - bs / 2f;
+                bolt.reset();
+                bolt.moveTo(left + bs * 0.62f, top);
+                bolt.lineTo(left + bs * 0.05f, top + bs * 0.58f);
+                bolt.lineTo(left + bs * 0.42f, top + bs * 0.58f);
+                bolt.lineTo(left + bs * 0.30f, top + bs);
+                bolt.lineTo(left + bs * 0.95f, top + bs * 0.38f);
+                bolt.lineTo(left + bs * 0.56f, top + bs * 0.38f);
+                bolt.close();
+                fill.setColor(colChg);
+                c.drawPath(bolt, fill);
+            } else {
+                text.setColor(col);
+                Paint.FontMetrics fm = text.getFontMetrics();
+                c.drawText(t, cx, ly - (fm.ascent + fm.descent) / 2f, text);
+            }
         }
 
-        if (charging) {                                  // tia sét nằm trong khe hở phía trên
-            float bs = s * 0.24f;
-            float left = cx - bs * 0.5f, top = cy - r - bs * 0.7f;
-            bolt.reset();
-            bolt.moveTo(left + bs * 0.58f, top);
-            bolt.lineTo(left, top + bs * 0.82f);
-            bolt.lineTo(left + bs * 0.44f, top + bs * 0.82f);
-            bolt.lineTo(left + bs * 0.32f, top + bs * 1.4f);
-            bolt.lineTo(left + bs, top + bs * 0.5f);
-            bolt.lineTo(left + bs * 0.56f, top + bs * 0.5f);
-            bolt.close();
-            fill.setColor(colChg);
-            c.drawPath(bolt, fill);
+        // ---- 5 chấm sóng di động theo đường cong phía dưới
+        if (showDots) {
+            int lit = sigLevel < 0 ? 0 : Math.min(5, sigLevel + 1);
+            float dr = Math.max(1.2f, stroke * 0.55f);
+            net.setStyle(Paint.Style.FILL);
+            net.setColor(colNormal);
+            for (int i = 0; i < 5; i++) {
+                double a = Math.toRadians(90 + (i - 2) * 18f);
+                net.setAlpha(i < lit ? 255 : 70);
+                c.drawCircle((float) (cx + r * Math.cos(a)), (float) (cy + r * Math.sin(a)), dr, net);
+            }
         }
+
+        // ---- giữa vòng: Wi-Fi hoặc loại mạng
+        if (showWifi && wifiLevel >= 0) {
+            drawWifi(c, cx, cy, s);
+        } else if (showNetType && !netType.isEmpty()) {
+            text2.setColor(colNormal);
+            text2.setTextSize(s * 0.27f);
+            Paint.FontMetrics fm = text2.getFontMetrics();
+            c.drawText(netType, cx, cy + s * 0.05f - (fm.ascent + fm.descent) / 2f, text2);
+        }
+    }
+
+    private void drawWifi(Canvas c, float cx, float cy, float s) {
+        float oy = cy + 0.17f * s;
+        int lit = Math.round(wifiLevel * 3f / 4f);
+        net.setStyle(Paint.Style.STROKE);
+        net.setStrokeWidth(Math.max(1.2f, s * 0.06f));
+        net.setColor(colNormal);
+        for (int k = 1; k <= 3; k++) {
+            float rr = k * 0.095f * s + 0.01f * s;
+            oval.set(cx - rr, oy - rr, cx + rr, oy + rr);
+            net.setAlpha(k <= lit ? 255 : 70);
+            c.drawArc(oval, -135f, 90f, false, net);
+        }
+        net.setStyle(Paint.Style.FILL);
+        net.setAlpha(255);
+        c.drawCircle(cx, oy, 0.04f * s, net);
     }
 }

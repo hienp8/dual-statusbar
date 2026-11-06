@@ -83,6 +83,11 @@ public final class Config {
     public static final String RING_COL_LOW = "ring_color_low";
     public static final String RING_LOW_LEVEL = "ring_low_level";
     public static final String RING_WIFI = "ring_show_wifi";
+    public static final String RING_NETTYPE = "ring_show_nettype";
+    public static final String RING_BOLT = "ring_bolt";
+    public static final String RING_PCT_H = "ring_pct_height";
+    public static final String RING_HIDE_WIFI = "ring_hide_wifi";
+    public static final String RING_HIDE_SIG = "ring_hide_signal";
     public static final String RING_SIGNAL = "ring_show_signal";
     public static final String RING_SIG_STYLE = "ring_signal_style";   // 0 thanh, 1 chấm
 
@@ -112,7 +117,8 @@ public final class Config {
             case DATE_POS: return 6;
             case DATE_SIZE: return 11;
             case RING_POS: return 5;
-            case RING_SIZE: return 22;
+            case RING_SIZE: return 26;
+            case RING_PCT_H: return 80;
             case RING_STROKE: return 2;
             case RING_LOW_LEVEL: return 20;
             default: return 0;
