@@ -25,6 +25,7 @@ import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
 import android.os.PowerManager;
+import android.os.SystemClock;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
@@ -42,6 +43,7 @@ import android.widget.RelativeLayout;
 import android.widget.TextClock;
 import android.widget.TextView;
 
+import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -85,15 +87,14 @@ final class BarController {
     private AnalogClockView analog;
     private TextView label;
     private TextClock timeClock;
-    private TextView dateText;
+    private TextView solarText, lunarText;
     private BatteryRingView ring;
 
     private int labelMode;
     private String labelText = "";
-    private boolean dateOn;
-    private int dateMode, lunarFmt;
-    private String dateFmt = "EEE, d MMM", dateCustom = "";
-    private boolean lunarNewline;
+    private boolean solarOn, lunarOn;
+    private int lunarFmt;
+    private String solarFmt = "EEE, d MMM", solarCustom = "";
 
     private Bundle cfg;
     private int lastAuto;
@@ -107,7 +108,11 @@ final class BarController {
     private int heightPx;
     private final int[] cells = {-1, -1, -1, -1};   // đồng hồ, thông báo, biểu tượng, Now Bar
     private boolean dumped;
-    private boolean ringOn, hideBattery, hideWifi, hideSig;
+    private boolean ringOn, hideBattery, hideWifi, hideSig, moduleOn, hideNotif;
+    private final Set<String> hiddenSlots = new HashSet<>();
+    private final Map<String, View> slotViews = new HashMap<>();
+    private final Set<String> reported = new HashSet<>();
+    private long lastScan;
     private final Set<View> hidden = new HashSet<>();
     private final List<View> wifiViews = new ArrayList<>(), mobileViews = new ArrayList<>();
     private String lastIcons = "";
@@ -179,6 +184,7 @@ final class BarController {
                 int c = autoColor();
                 if (c != lastAuto) {
                     lastAuto = c;
+                    SysUiHook.lastAutoColor = c;
                     root.post(new Runnable() { @Override public void run() { applyColors(); } });
                 }
             }
@@ -186,7 +192,7 @@ final class BarController {
 
         root.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
             @Override public boolean onPreDraw() {
-                if (ringOn || !hidden.isEmpty()) applyHides();
+                if (moduleOn || !hidden.isEmpty()) applyHides();
                 return true;
             }
         });
@@ -260,18 +266,20 @@ final class BarController {
         labelText = Config.getString(b, Config.LABEL_TEXT);
         boolean lb = labelMode != 0;
         boolean tm = enabled && Config.getBool(b, Config.TIME_ENABLED);
-        dateOn = enabled && Config.getBool(b, Config.DATE_ENABLED);
+        solarOn = enabled && Config.getBool(b, Config.SOLAR_ENABLED);
+        lunarOn = enabled && Config.getBool(b, Config.LUNAR_ENABLED);
         boolean rg = enabled && Config.getBool(b, Config.RING_ENABLED);
 
         chipFwd = dual && Config.getBool(b, Config.CHIP_FWD);
-        boolean needOverlay = an || lb || tm || dateOn || rg || chipFwd;
+        boolean needOverlay = an || lb || tm || solarOn || lunarOn || rg || chipFwd;
         if (needOverlay) ensureOverlay();
         if (overlay != null) {
             overlay.setVisibility(needOverlay ? View.VISIBLE : View.GONE);
             analog.setVisibility(an ? View.VISIBLE : View.GONE);
             label.setVisibility(lb ? View.VISIBLE : View.GONE);
             timeClock.setVisibility(tm ? View.VISIBLE : View.GONE);
-            dateText.setVisibility(dateOn ? View.VISIBLE : View.GONE);
+            solarText.setVisibility(solarOn ? View.VISIBLE : View.GONE);
+            lunarText.setVisibility(lunarOn ? View.VISIBLE : View.GONE);
             ring.setVisibility(rg ? View.VISIBLE : View.GONE);
 
             if (an) {
@@ -297,22 +305,22 @@ final class BarController {
                 timeClock.setTextSize(TypedValue.COMPLEX_UNIT_SP, Config.getInt(b, Config.TIME_SIZE));
                 timeClock.setTextColor(colorOf(b, Config.TIME_COLOR));
             }
-            if (dateOn) {
-                dateMode = Config.getInt(b, Config.DATE_MODE);
-                dateFmt = Config.getString(b, Config.DATE_FMT);
-                dateCustom = Config.getString(b, Config.DATE_CUSTOM);
-                lunarFmt = Config.getInt(b, Config.LUNAR_FMT);
-                lunarNewline = Config.getBool(b, Config.LUNAR_NEWLINE);
-                put(dateText, Config.getInt(b, Config.DATE_POS), -2, -2,
-                        Config.getInt(b, Config.DATE_DX) * d, Config.getInt(b, Config.DATE_DY) * d);
-                dateText.setTextSize(TypedValue.COMPLEX_UNIT_SP, Config.getInt(b, Config.DATE_SIZE));
-                dateText.setTextColor(colorOf(b, Config.DATE_COLOR));
-                boolean two = lunarNewline && dateMode == 2;
-                dateText.setSingleLine(!two);
-                if (two) dateText.setMaxLines(2);
-                dateText.setGravity(Gravity.CENTER_HORIZONTAL);
-                refreshDate();
+            if (solarOn) {
+                solarFmt = Config.getString(b, Config.SOLAR_FMT);
+                solarCustom = Config.getString(b, Config.SOLAR_CUSTOM);
+                put(solarText, Config.getInt(b, Config.SOLAR_POS), -2, -2,
+                        Config.getInt(b, Config.SOLAR_DX) * d, Config.getInt(b, Config.SOLAR_DY) * d);
+                solarText.setTextSize(TypedValue.COMPLEX_UNIT_SP, Config.getInt(b, Config.SOLAR_SIZE));
+                solarText.setTextColor(colorOf(b, Config.SOLAR_COLOR));
             }
+            if (lunarOn) {
+                lunarFmt = Config.getInt(b, Config.LUNAR_FMT);
+                put(lunarText, Config.getInt(b, Config.LUNAR_POS), -2, -2,
+                        Config.getInt(b, Config.LUNAR_DX) * d, Config.getInt(b, Config.LUNAR_DY) * d);
+                lunarText.setTextSize(TypedValue.COMPLEX_UNIT_SP, Config.getInt(b, Config.LUNAR_SIZE));
+                lunarText.setTextColor(colorOf(b, Config.LUNAR_COLOR));
+            }
+            if (solarOn || lunarOn) refreshDate();
             if (rg) {
                 int size = Math.round(Config.getInt(b, Config.RING_SIZE) * d);
                 put(ring, Config.getInt(b, Config.RING_POS), size, size,
@@ -339,11 +347,19 @@ final class BarController {
         boolean hideClock = enabled && (Config.getBool(b, Config.DIG_REPLACE)
                 || (an && Config.getBool(b, Config.AN_HIDE)));
         if (clock != null) clock.setAlpha(hideClock ? 0f : 1f);
+        moduleOn = enabled;
+        hideNotif = Config.getBool(b, Config.HIDE_NOTIF);
+        hiddenSlots.clear();
+        for (String sl : Config.getString(b, Config.HIDDEN_SLOTS).split(",")) {
+            sl = sl.trim();
+            if (!sl.isEmpty()) hiddenSlots.add(sl);
+        }
         ringOn = rg;
         hideBattery = Config.getBool(b, Config.RING_HIDE_STOCK);
         hideWifi = Config.getBool(b, Config.RING_HIDE_WIFI);
         hideSig = Config.getBool(b, Config.RING_HIDE_SIG);
-        if (rg && (hideWifi || hideSig)) scanSysIcons();
+        lastScan = 0;
+        scanSysIcons();
         applyHides();
 
         // đường pin ở viền dưới (foreground của root)
@@ -382,12 +398,14 @@ final class BarController {
         timeClock = new TextClock(ctx);
         timeClock.setSingleLine(true);
         timeClock.setIncludeFontPadding(false);
-        dateText = newText();
+        solarText = newText();
+        lunarText = newText();
         ring = new BatteryRingView(ctx);
         overlay.addView(analog, new FrameLayout.LayoutParams(1, 1));
         overlay.addView(label, new FrameLayout.LayoutParams(-2, -2));
         overlay.addView(timeClock, new FrameLayout.LayoutParams(-2, -2));
-        overlay.addView(dateText, new FrameLayout.LayoutParams(-2, -2));
+        overlay.addView(solarText, new FrameLayout.LayoutParams(-2, -2));
+        overlay.addView(lunarText, new FrameLayout.LayoutParams(-2, -2));
         overlay.addView(ring, new FrameLayout.LayoutParams(1, 1));
         contents.addView(overlay, new RelativeLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -442,34 +460,72 @@ final class BarController {
         if (b == null || overlay == null) return;
         label.setTextColor(colorOf(b, Config.LABEL_COLOR));
         timeClock.setTextColor(colorOf(b, Config.TIME_COLOR));
-        dateText.setTextColor(colorOf(b, Config.DATE_COLOR));
+        solarText.setTextColor(colorOf(b, Config.SOLAR_COLOR));
+        lunarText.setTextColor(colorOf(b, Config.LUNAR_COLOR));
         ring.setNormalColor(colorOf(b, Config.RING_COLOR));
         analog.setHandColor(colorOf(b, Config.AN_COLOR));
     }
 
-    // ---- ẩn biểu tượng Wi-Fi / sóng / pin gốc của hệ thống khi dùng khối vòng
-    private void scanSysIcons() {
-        wifiViews.clear();
-        mobileViews.clear();
-        if (sysGroup != null) collectIcons(sysGroup);
-        StringBuilder sb = new StringBuilder();
-        for (View v : wifiViews) sb.append("wifi:").append(idName(v)).append('/').append(v.getClass().getSimpleName()).append(' ');
-        for (View v : mobileViews) sb.append("mobile:").append(idName(v)).append('/').append(v.getClass().getSimpleName()).append(' ');
-        String sig = sb.toString();
-        if (!sig.equals(lastIcons)) {
-            lastIcons = sig;
-            XposedBridge.log(TAG + "biểu tượng hệ thống sẽ ẩn: " + (sig.isEmpty() ? "(không tìm thấy)" : sig));
+    // ---- ẩn / hiện biểu tượng trên thanh trạng thái (đặt alpha = 0, giữ nguyên bố cục của Samsung)
+    private static final Map<Class<?>, Method> SLOT_METHODS = new HashMap<>();
+
+    /** StatusBarIconView / ModernStatusBarView đều có getSlot() cho biết tên "slot" của biểu tượng. */
+    private static String slotOf(View v) {
+        Class<?> k = v.getClass();
+        Method m;
+        synchronized (SLOT_METHODS) {
+            if (!SLOT_METHODS.containsKey(k)) {
+                Method found = null;
+                try { found = k.getMethod("getSlot"); } catch (Throwable ignored) {}
+                SLOT_METHODS.put(k, found);
+            }
+            m = SLOT_METHODS.get(k);
+        }
+        if (m == null) return null;
+        try {
+            Object r = m.invoke(v);
+            return r instanceof String ? (String) r : null;
+        } catch (Throwable t) {
+            return null;
         }
     }
 
-    private void collectIcons(View v) {
-        String n = (idName(v) + " " + v.getClass().getSimpleName()).toLowerCase();
+    private void scanSysIcons() {
+        long now = SystemClock.uptimeMillis();
+        if (now - lastScan < 400) return;
+        lastScan = now;
+        wifiViews.clear();
+        mobileViews.clear();
+        slotViews.clear();
+        if (sysGroup != null) collectIcons(sysGroup, 0);
+
+        StringBuilder sb = new StringBuilder();
+        for (String sl : slotViews.keySet()) sb.append(sl).append(' ');
+        String sig = sb.toString();
+        if (!sig.equals(lastIcons)) {
+            lastIcons = sig;
+            XposedBridge.log(TAG + "biểu tượng hệ thống tìm thấy (slot): " + (sig.isEmpty() ? "(không có)" : sig)
+                    + "| wifi=" + wifiViews.size() + " mobile=" + mobileViews.size());
+        }
+        StringBuilder add = new StringBuilder();
+        for (String sl : slotViews.keySet()) {
+            if (reported.add(sl)) { if (add.length() > 0) add.append(','); add.append(sl); }
+        }
+        if (add.length() > 0) SysUiHook.reportSlots(ctx, add.toString());   // để app hiện trong danh sách chọn
+    }
+
+    private void collectIcons(View v, int depth) {
+        if (depth > 10) return;
+        String slot = slotOf(v);
+        String n = (idName(v) + " " + v.getClass().getSimpleName() + " " + (slot == null ? "" : slot)).toLowerCase();
+        if (slot != null) slotViews.put(slot, v);
         if (n.contains("airplane") || n.contains("hotspot")) return;
         if (n.contains("wifi")) { wifiViews.add(v); return; }
         if (n.contains("mobile") || n.contains("signal") || n.contains("cellular")) { mobileViews.add(v); return; }
+        if (slot != null) return;
         if (v instanceof ViewGroup) {
             ViewGroup g = (ViewGroup) v;
-            for (int i = 0; i < g.getChildCount(); i++) collectIcons(g.getChildAt(i));
+            for (int i = 0; i < g.getChildCount(); i++) collectIcons(g.getChildAt(i), depth + 1);
         }
     }
 
@@ -484,12 +540,19 @@ final class BarController {
     }
 
     private void applyHides() {
-        setHidden(stockBattery, ringOn && hideBattery);
-        for (View v : wifiViews) setHidden(v, ringOn && hideWifi);
-        for (View v : mobileViews) setHidden(v, ringOn && hideSig);
-        if (!ringOn && !hidden.isEmpty()) {          // tắt khối vòng: trả lại hết
-            for (View v : new ArrayList<>(hidden)) { v.setAlpha(1f); hidden.remove(v); }
+        if (!moduleOn && hidden.isEmpty()) return;
+        Set<View> want = new HashSet<>();
+        if (moduleOn) {
+            if (ringOn && hideBattery && stockBattery != null) want.add(stockBattery);
+            if (ringOn && hideWifi) want.addAll(wifiViews);
+            if (ringOn && hideSig) want.addAll(mobileViews);
+            for (Map.Entry<String, View> e : slotViews.entrySet())
+                if (hiddenSlots.contains(e.getKey())) want.add(e.getValue());
+            if (hideNotif && notif != null) want.add(notif);
         }
+        Set<View> all = new HashSet<>(hidden);
+        all.addAll(want);
+        for (View v : all) setHidden(v, want.contains(v));
     }
 
     // ---- Wi-Fi + sóng di động cho khối pin vòng
@@ -607,27 +670,24 @@ final class BarController {
     }
 
     private void refreshDate() {
-        if (dateText == null || !dateOn) return;
+        if (overlay == null) return;
         Calendar cal = Calendar.getInstance();
-        String solar = null, lunar = null;
-        if (dateMode != 1) {
-            String pat = dateCustom == null || dateCustom.trim().isEmpty() ? dateFmt : dateCustom.trim();
+        if (solarOn) {
+            String pat = solarCustom == null || solarCustom.trim().isEmpty() ? solarFmt : solarCustom.trim();
+            String out;
             try {
                 Locale loc = ctx.getResources().getConfiguration().getLocales().get(0);
-                solar = new SimpleDateFormat(pat, loc).format(cal.getTime());
+                out = new SimpleDateFormat(pat, loc).format(cal.getTime());
             } catch (Exception e) {
-                solar = pat;
+                out = pat;
             }
+            solarText.setText(out);
         }
-        if (dateMode != 0) {
+        if (lunarOn) {
             int[] l = LunarCalendar.solarToLunar(cal.get(Calendar.DAY_OF_MONTH),
                     cal.get(Calendar.MONTH) + 1, cal.get(Calendar.YEAR));
-            lunar = LunarCalendar.format(l, lunarFmt);
+            lunarText.setText(LunarCalendar.format(l, lunarFmt));
         }
-        String out = solar != null && lunar != null
-                ? solar + (lunarNewline ? "\n" : "  ·  ") + lunar
-                : solar != null ? solar : lunar;
-        dateText.setText(out);
     }
 
     private String carrierName() {
@@ -675,7 +735,7 @@ final class BarController {
     // ------------------------------------------------------------------ bố cục lưới 3x3
 
     private void onLayout() {
-        if (ringOn && (hideWifi || hideSig)) scanSysIcons();
+        scanSysIcons();
         if (heightPx > 0) {
             ViewGroup.LayoutParams lp = root.getLayoutParams();
             if (lp != null && lp.height != heightPx) { lp.height = heightPx; root.setLayoutParams(lp); }

@@ -10,9 +10,11 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.provider.Settings;
 import android.util.Log;
 import android.graphics.Insets;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowInsets;
@@ -38,17 +40,19 @@ public final class SysUiHook {
 
     static final String TAG = "[DualSB] ";
     static final Handler UI = new Handler(Looper.getMainLooper());
-    private static final ExecutorService IO = Executors.newSingleThreadExecutor();
+    static final ExecutorService IO = Executors.newSingleThreadExecutor();
     private static final Set<BarController> CONTROLLERS =
             Collections.newSetFromMap(new WeakHashMap<BarController, Boolean>());
     private static boolean observing;
-    private static final Map<Integer, Boolean> HEIGHT_IDS = new ConcurrentHashMap<>();
+    private static final Map<Integer, Integer> HEIGHT_IDS = new ConcurrentHashMap<>();
+    static volatile int lastAutoColor = 0xFFFFFFFF;   // màu chữ hệ thống hiện tại (BarController cập nhật)
 
     public static void install(XC_LoadPackage.LoadPackageParam lpp) {
         ClassLoader cl = lpp.classLoader;
         HeightHook.install(cl);
         hookResources();
         hookWindow(cl);
+        NavStyle.install(cl);
 
         Class<?> kg = XposedHelpers.findClassIfExists(
                 "com.android.systemui.statusbar.phone.KeyguardStatusBarView", cl);
@@ -160,6 +164,10 @@ public final class SysUiHook {
                             try { k.apply(cfg); }
                             catch (Throwable t) { XposedBridge.log(TAG + "apply kg: " + Log.getStackTraceString(t)); }
                         }
+                        try { NavStyle.setConfig(cfg); }
+                        catch (Throwable t) { XposedBridge.log(TAG + "apply nav: " + Log.getStackTraceString(t)); }
+                        try { EdgeGesture.get().apply(ctx, cfg); }
+                        catch (Throwable t) { XposedBridge.log(TAG + "apply edge: " + Log.getStackTraceString(t)); }
                     }
                 });
             }
@@ -178,37 +186,58 @@ public final class SysUiHook {
 
     private static void publishHeight(Context ctx, Bundle b) {
         boolean on = Config.getBool(b, Config.ENABLED) && Config.getBool(b, Config.DUAL);
-        int px = on ? Math.round(Config.getInt(b, Config.HEIGHT)
-                * ctx.getResources().getDisplayMetrics().density) : 0;
+        float density = ctx.getResources().getDisplayMetrics().density;
+        int px = on ? Math.round(Config.getInt(b, Config.HEIGHT) * density) : 0;
         HeightHook.targetPx = px;
+        boolean navOn = Config.getBool(b, Config.ENABLED) && Config.getBool(b, Config.NAV_ENABLED);
+        int npx = navOn ? Math.round(Config.getInt(b, Config.NAV_HEIGHT) * density) : 0;
+        navPx = npx;
         try {
             if (Settings.Global.getInt(ctx.getContentResolver(), Config.SETTING_HEIGHT_PX, -1) != px)
                 Settings.Global.putInt(ctx.getContentResolver(), Config.SETTING_HEIGHT_PX, px);
+            if (Settings.Global.getInt(ctx.getContentResolver(), Config.SETTING_NAV_PX, -1) != npx)
+                Settings.Global.putInt(ctx.getContentResolver(), Config.SETTING_NAV_PX, npx);
         } catch (Throwable t) {
             XposedBridge.log(TAG + "ghi Settings.Global lỗi: " + t);
         }
     }
 
-    /** Trả về chiều cao mới cho các dimen status_bar_height* mà SystemUI đọc runtime. */
+    /** Báo danh sách biểu tượng (slot) đã thấy về app module để hiện trong menu ẩn / hiện. */
+    static void reportSlots(final Context ctx, final String csv) {
+        IO.execute(new Runnable() {
+            @Override public void run() {
+                try { ctx.getContentResolver().call(Uri.parse(Config.CONFIG_URI), "report_slots", csv, null); }
+                catch (Throwable t) { XposedBridge.log(TAG + "báo slot lỗi: " + t); }
+            }
+        });
+    }
+
+    /** Trả về chiều cao mới cho status_bar_height* và navigation_bar_height mà SystemUI đọc runtime. */
     private static void hookResources() {
         try {
             XposedHelpers.findAndHookMethod(Resources.class, "getDimensionPixelSize", int.class,
                     new XC_MethodHook() {
                         @Override protected void afterHookedMethod(MethodHookParam p) {
-                            int tp = HeightHook.targetPx;
-                            if (tp <= 0) return;
+                            int sp = HeightHook.targetPx, np = navPx;
+                            if (sp <= 0 && np <= 0) return;
                             int id = (Integer) p.args[0];
                             if ((id >>> 24) != 0x7f) return;
-                            Boolean hit = HEIGHT_IDS.get(id);
-                            if (hit == null) {
+                            Integer kind = HEIGHT_IDS.get(id);
+                            if (kind == null) {
+                                int k = 0;
                                 try {
                                     Resources r = (Resources) p.thisObject;
-                                    hit = "com.android.systemui".equals(r.getResourcePackageName(id))
-                                            && r.getResourceEntryName(id).startsWith("status_bar_height");
-                                } catch (Throwable t) { hit = false; }
-                                HEIGHT_IDS.put(id, hit);
+                                    if ("com.android.systemui".equals(r.getResourcePackageName(id))) {
+                                        String n = r.getResourceEntryName(id);
+                                        if (n.startsWith("status_bar_height")) k = 1;
+                                        else if (n.equals("navigation_bar_height") || n.equals("navigation_bar_frame_height")) k = 2;
+                                    }
+                                } catch (Throwable t) { k = 0; }
+                                kind = k;
+                                HEIGHT_IDS.put(id, kind);
                             }
-                            if (hit) p.setResult(tp);
+                            if (kind == 1 && sp > 0) p.setResult(sp);
+                            else if (kind == 2 && np > 0) p.setResult(np);
                         }
                     });
         } catch (Throwable t) {
@@ -242,30 +271,65 @@ public final class SysUiHook {
         }
     }
 
+    private static final Map<View, Integer> ORIG_NAV_H = Collections.synchronizedMap(new WeakHashMap<View, Integer>());
+    static volatile int navPx = -1;          // -1 chưa biết (đọc Settings.Global), 0 tắt, >0 px
+    private static long navRead;
+    private static int navCached;
+
+    static int readNavPx(Context ctx) {
+        int t = navPx;
+        if (t >= 0) return t;
+        long now = SystemClock.uptimeMillis();
+        if (now - navRead < 1000) return navCached;
+        navRead = now;
+        try { navCached = Settings.Global.getInt(ctx.getContentResolver(), Config.SETTING_NAV_PX, 0); }
+        catch (Throwable ignored) {}
+        return navCached;
+    }
+
     static void adjustWindow(View v, ViewGroup.LayoutParams lp) {
         if (!(lp instanceof WindowManager.LayoutParams)) return;
         WindowManager.LayoutParams w = (WindowManager.LayoutParams) lp;
-        if (w.type != WindowManager.LayoutParams.TYPE_STATUS_BAR) return;
-        if (!v.getClass().getName().contains("StatusBarWindow")) return;
-        synchronized (ORIG_WIN_H) {
-            if (!ORIG_WIN_H.containsKey(v)) {
-                ORIG_WIN_H.put(v, w.height);
-                XposedBridge.log(TAG + "status bar window: " + v.getClass().getName() + " h=" + w.height);
+        String cn = v.getClass().getName();
+
+        if (w.type == WindowManager.LayoutParams.TYPE_STATUS_BAR && cn.contains("StatusBarWindow")) {
+            synchronized (ORIG_WIN_H) {
+                if (!ORIG_WIN_H.containsKey(v)) {
+                    ORIG_WIN_H.put(v, w.height);
+                    XposedBridge.log(TAG + "status bar window: " + cn + " h=" + w.height);
+                }
             }
-        }
-        int px = HeightHook.targetPx;
-        if (px > 0) {
-            w.height = px;
-            fixInsets(w, px);
-        } else if (px == 0) {
-            Integer o = ORIG_WIN_H.get(v);
-            if (o != null) w.height = o;
-            fixInsets(w, 0);
+            int px = HeightHook.targetPx;
+            if (px > 0) {
+                w.height = px;
+                fixInsets(w, WindowInsets.Type.statusBars(), 1, px);
+            } else if (px == 0) {
+                Integer o = ORIG_WIN_H.get(v);
+                if (o != null) w.height = o;
+                fixInsets(w, WindowInsets.Type.statusBars(), 1, 0);
+            }
+        } else if (w.type == 2019 && cn.contains("NavigationBar")                      // TYPE_NAVIGATION_BAR
+                && (w.gravity & Gravity.BOTTOM) == Gravity.BOTTOM) {
+            synchronized (ORIG_NAV_H) {
+                if (!ORIG_NAV_H.containsKey(v)) {
+                    ORIG_NAV_H.put(v, w.height);
+                    XposedBridge.log(TAG + "navigation bar window: " + cn + " h=" + w.height);
+                }
+            }
+            int px = readNavPx(v.getContext());
+            if (px > 0) {
+                w.height = px;
+                fixInsets(w, WindowInsets.Type.navigationBars(), 3, px);
+            } else if (px == 0) {
+                Integer o = ORIG_NAV_H.get(v);
+                if (o != null) w.height = o;
+                fixInsets(w, WindowInsets.Type.navigationBars(), 3, 0);
+            }
         }
     }
 
-    /** Cập nhật kích thước inset mà cửa sổ status bar cung cấp cho hệ thống (nếu có). */
-    private static void fixInsets(WindowManager.LayoutParams w, int px) {
+    /** Cập nhật kích thước inset mà cửa sổ cung cấp cho hệ thống. side: 1 = trên (status), 3 = dưới (nav). */
+    private static void fixInsets(WindowManager.LayoutParams w, int typeMask, int side, int px) {
         try {
             Object arr = XposedHelpers.getObjectField(w, "providedInsets");
             if (arr == null) return;
@@ -273,14 +337,19 @@ public final class SysUiHook {
             for (int i = 0; i < n; i++) {
                 Object p = java.lang.reflect.Array.get(arr, i);
                 int type = (Integer) XposedHelpers.callMethod(p, "getType");
-                if ((type & WindowInsets.Type.statusBars()) == 0) continue;
+                if ((type & typeMask) == 0) continue;
                 synchronized (ORIG_INS) {
                     if (!ORIG_INS.containsKey(p)) ORIG_INS.put(p, XposedHelpers.callMethod(p, "getInsetsSize"));
                 }
                 Insets o = (Insets) ORIG_INS.get(p);
-                Insets ni = px > 0
-                        ? Insets.of(o == null ? 0 : o.left, px, o == null ? 0 : o.right, o == null ? 0 : o.bottom)
-                        : o;
+                Insets ni;
+                if (px > 0) {
+                    int l = o == null ? 0 : o.left, t = o == null ? 0 : o.top;
+                    int r = o == null ? 0 : o.right, b = o == null ? 0 : o.bottom;
+                    ni = side == 1 ? Insets.of(l, px, r, b) : Insets.of(l, t, r, px);
+                } else {
+                    ni = o;
+                }
                 if (ni != null) XposedHelpers.callMethod(p, "setInsetsSize", ni);
             }
         } catch (Throwable t) {

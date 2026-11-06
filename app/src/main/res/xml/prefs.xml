@@ -60,31 +60,43 @@
                 android:defaultValue="auto" app:useSimpleSummaryProvider="true" />
     </PreferenceScreen>
 
-    <PreferenceScreen android:key="scr_date" android:title="Ngày tháng" android:summary="Dương lịch, âm lịch">
-            <SwitchPreferenceCompat android:key="date_enabled" android:title="Hiện ngày tháng" android:defaultValue="false" />
-            <ListPreference android:key="date_mode" android:title="Loại lịch"
-                android:entries="@array/date_mode_entries" android:entryValues="@array/date_mode_values"
-                android:defaultValue="0" app:useSimpleSummaryProvider="true" />
-            <ListPreference android:key="date_format" android:title="Kiểu dương lịch"
+    <PreferenceScreen android:key="scr_solar" android:title="Dương lịch" android:summary="Hiển thị, kiểu, kích thước, vị trí, màu">
+            <SwitchPreferenceCompat android:key="solar_enabled" android:title="Hiện dương lịch" android:defaultValue="false" />
+            <ListPreference android:key="solar_format" android:title="Kiểu dương lịch"
                 android:entries="@array/date_fmt_entries" android:entryValues="@array/date_fmt_values"
                 android:defaultValue="EEE, d MMM" app:useSimpleSummaryProvider="true" />
-            <EditTextPreference android:key="date_custom" android:title="Kiểu dương lịch tự gõ (tuỳ chọn)"
+            <EditTextPreference android:key="solar_custom" android:title="Kiểu tự gõ (tuỳ chọn)"
                 android:summary="Mẫu SimpleDateFormat, ví dụ: EEEE, dd/MM/yyyy. Để trống để dùng kiểu ở trên"
                 android:defaultValue="" />
+            <ListPreference android:key="solar_pos" android:title="Vị trí"
+                android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
+                android:defaultValue="6" app:useSimpleSummaryProvider="true" />
+            <SeekBarPreference android:key="solar_size" android:title="Cỡ chữ (sp)"
+                app:min="6" android:max="24" app:showSeekBarValue="true" android:defaultValue="11" />
+            <SeekBarPreference android:key="solar_dx" android:title="Dịch ngang (dp)"
+                app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
+            <SeekBarPreference android:key="solar_dy" android:title="Dịch dọc (dp)"
+                app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
+            <ListPreference android:key="solar_color" android:title="Màu chữ"
+                android:entries="@array/color_auto_entries" android:entryValues="@array/color_auto_values"
+                android:defaultValue="auto" app:useSimpleSummaryProvider="true" />
+    </PreferenceScreen>
+
+    <PreferenceScreen android:key="scr_lunar" android:title="Âm lịch" android:summary="Hiển thị, kiểu, kích thước, vị trí, màu">
+            <SwitchPreferenceCompat android:key="lunar_enabled" android:title="Hiện âm lịch" android:summary="Tính theo thuật toán Hồ Ngọc Đức, múi giờ Việt Nam (UTC+7)" android:defaultValue="false" />
             <ListPreference android:key="lunar_format" android:title="Kiểu âm lịch"
                 android:entries="@array/lunar_fmt_entries" android:entryValues="@array/lunar_fmt_values"
                 android:defaultValue="0" app:useSimpleSummaryProvider="true" />
-            <SwitchPreferenceCompat android:key="lunar_newline" android:title="Âm lịch xuống dòng riêng" android:summary="Chỉ có tác dụng với kiểu Dương lịch + âm lịch" android:defaultValue="false" />
-            <ListPreference android:key="date_pos" android:title="Vị trí"
+            <ListPreference android:key="lunar_pos" android:title="Vị trí"
                 android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
-                android:defaultValue="6" app:useSimpleSummaryProvider="true" />
-            <SeekBarPreference android:key="date_size" android:title="Cỡ chữ (sp)"
-                app:min="6" android:max="24" app:showSeekBarValue="true" android:defaultValue="11" />
-            <SeekBarPreference android:key="date_dx" android:title="Dịch ngang (dp)"
+                android:defaultValue="8" app:useSimpleSummaryProvider="true" />
+            <SeekBarPreference android:key="lunar_size" android:title="Cỡ chữ (sp)"
+                app:min="6" android:max="24" app:showSeekBarValue="true" android:defaultValue="10" />
+            <SeekBarPreference android:key="lunar_dx" android:title="Dịch ngang (dp)"
                 app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
-            <SeekBarPreference android:key="date_dy" android:title="Dịch dọc (dp)"
+            <SeekBarPreference android:key="lunar_dy" android:title="Dịch dọc (dp)"
                 app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
-            <ListPreference android:key="date_color" android:title="Màu chữ"
+            <ListPreference android:key="lunar_color" android:title="Màu chữ"
                 android:entries="@array/color_auto_entries" android:entryValues="@array/color_auto_values"
                 android:defaultValue="auto" app:useSimpleSummaryProvider="true" />
     </PreferenceScreen>
@@ -190,6 +202,63 @@
             <Preference android:key="clear_minute" android:title="Xoá ảnh kim phút" />
             <Preference android:key="pick_second" android:title="Chọn ảnh kim giây" />
             <Preference android:key="clear_second" android:title="Xoá ảnh kim giây" />
+    </PreferenceScreen>
+
+    <PreferenceScreen android:key="scr_icons" android:title="Ẩn / hiện biểu tượng" android:summary="Chọn biểu tượng trên thanh trạng thái cần ẩn">
+            <SwitchPreferenceCompat android:key="hide_notif_icons" android:title="Ẩn biểu tượng thông báo" android:defaultValue="false" />
+            <MultiSelectListPreference android:key="hidden_slots" android:title="Biểu tượng hệ thống cần ẩn"
+                android:summary="Tick vào biểu tượng muốn ẩn. Danh sách tự bổ sung khi biểu tượng xuất hiện trên thanh"
+                android:entries="@array/slot_entries" android:entryValues="@array/slot_values" />
+    </PreferenceScreen>
+
+    <PreferenceScreen android:key="scr_nav" android:title="Thanh điều hướng" android:summary="Chiều cao, biểu tượng Back / Home / Recents, nhấn giữ Back">
+            <SwitchPreferenceCompat android:key="nav_enabled" android:title="Tuỳ chỉnh thanh điều hướng" android:summary="Dùng cho điều hướng 3 nút. Đổi chiều cao nên khởi động lại máy" android:defaultValue="false" />
+            <SeekBarPreference android:key="nav_height_dp" android:title="Chiều cao thanh (dp)"
+                app:min="24" android:max="96" app:showSeekBarValue="true" android:defaultValue="48" />
+            <SeekBarPreference android:key="nav_icon_size" android:title="Kích thước biểu tượng (dp)"
+                app:min="12" android:max="48" app:showSeekBarValue="true" android:defaultValue="24" />
+            <ListPreference android:key="nav_tint" android:title="Màu biểu tượng"
+                android:entries="@array/nav_tint_entries" android:entryValues="@array/nav_tint_values"
+                android:defaultValue="orig" app:useSimpleSummaryProvider="true" />
+            <Preference android:key="pick_nav_back" android:title="Chọn ảnh nút Back" />
+            <Preference android:key="clear_nav_back" android:title="Xoá ảnh nút Back" />
+            <Preference android:key="pick_nav_home" android:title="Chọn ảnh nút Home" android:summary="Hỗ trợ file GIF động" />
+            <Preference android:key="clear_nav_home" android:title="Xoá ảnh nút Home" />
+            <Preference android:key="pick_nav_recent" android:title="Chọn ảnh nút Recents" />
+            <Preference android:key="clear_nav_recent" android:title="Xoá ảnh nút Recents" />
+            <SwitchPreferenceCompat android:key="nav_back_long_kill" android:title="Nhấn giữ Back: đóng ứng dụng chạy nền" android:summary="Đóng toàn bộ ứng dụng đang chạy ẩn (không đóng ứng dụng đang dùng)" android:defaultValue="false" />
+            <SwitchPreferenceCompat android:key="kill_skip_system" android:title="Không đóng ứng dụng hệ thống" android:defaultValue="true" />
+    </PreferenceScreen>
+
+    <PreferenceScreen android:key="scr_edge" android:title="Phím cử chỉ cạnh màn hình" android:summary="Dải cảm ứng ở cạnh trái / phải, mỗi hướng vuốt một chức năng">
+            <SwitchPreferenceCompat android:key="edge_enabled" android:title="Bật phím cử chỉ cạnh" android:summary="Dải này chặn cảm ứng của ứng dụng bên dưới trong vùng của nó" android:defaultValue="false" />
+            <ListPreference android:key="edge_side" android:title="Cạnh màn hình"
+                android:entries="@array/edge_side_entries" android:entryValues="@array/edge_side_values"
+                android:defaultValue="0" app:useSimpleSummaryProvider="true" />
+            <SeekBarPreference android:key="edge_y" android:title="Vị trí dọc (% chiều cao màn hình)"
+                app:min="0" android:max="100" app:showSeekBarValue="true" android:defaultValue="50" />
+            <SeekBarPreference android:key="edge_h" android:title="Chiều cao dải (%)"
+                app:min="10" android:max="100" app:showSeekBarValue="true" android:defaultValue="30" />
+            <SeekBarPreference android:key="edge_w" android:title="Độ rộng dải (dp)"
+                app:min="6" android:max="60" app:showSeekBarValue="true" android:defaultValue="16" />
+            <SeekBarPreference android:key="edge_alpha" android:title="Độ hiện của dải chỉ báo (%)"
+                app:min="0" android:max="60" app:showSeekBarValue="true" android:defaultValue="15" />
+            <SwitchPreferenceCompat android:key="edge_haptic" android:title="Rung nhẹ khi kích hoạt" android:defaultValue="true" />
+            <ListPreference android:key="edge_tap" android:title="Chạm"
+                android:entries="@array/action_entries" android:entryValues="@array/action_values"
+                android:defaultValue="0" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="edge_long" android:title="Nhấn giữ"
+                android:entries="@array/action_entries" android:entryValues="@array/action_values"
+                android:defaultValue="0" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="edge_up" android:title="Vuốt lên"
+                android:entries="@array/action_entries" android:entryValues="@array/action_values"
+                android:defaultValue="3" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="edge_down" android:title="Vuốt xuống"
+                android:entries="@array/action_entries" android:entryValues="@array/action_values"
+                android:defaultValue="4" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="edge_in" android:title="Vuốt vào trong"
+                android:entries="@array/action_entries" android:entryValues="@array/action_values"
+                android:defaultValue="1" app:useSimpleSummaryProvider="true" />
     </PreferenceScreen>
 
     <PreferenceScreen android:key="scr_backup" android:title="Sao lưu &amp; khôi phục" android:summary="Xuất / nhập toàn bộ cài đặt và ảnh">

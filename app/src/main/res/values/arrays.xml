@@ -101,4 +101,40 @@
         <item>Giữ nguyên (căn giữa)</item><item>Hàng trên</item><item>Hàng dưới</item>
     </string-array>
     <string-array name="kg_row_values"><item>0</item><item>1</item><item>2</item></string-array>
+    <string-array name="nav_tint_entries">
+        <item>Giữ màu gốc của ảnh</item><item>Tự động (theo hệ thống)</item>
+        <item>Trắng</item><item>Đen</item><item>Đỏ</item><item>Vàng</item><item>Xanh lá</item><item>Xanh dương</item><item>Cam</item>
+    </string-array>
+    <string-array name="nav_tint_values">
+        <item>orig</item><item>auto</item>
+        <item>#FFFFFFFF</item><item>#FF000000</item><item>#FFE53935</item><item>#FFFFC107</item><item>#FF4CAF50</item><item>#FF2196F3</item><item>#FFFF9800</item>
+    </string-array>
+    <string-array name="edge_side_entries"><item>Cạnh trái</item><item>Cạnh phải</item></string-array>
+    <string-array name="edge_side_values"><item>0</item><item>1</item></string-array>
+    <string-array name="action_entries">
+        <item>Không làm gì</item><item>Quay lại (Back)</item><item>Về màn hình chính (Home)</item>
+        <item>Ứng dụng gần đây (Recents)</item><item>Mở thanh thông báo</item><item>Mở cài đặt nhanh</item>
+        <item>Khoá màn hình</item><item>Chụp màn hình</item><item>Đóng ứng dụng chạy nền</item>
+        <item>Tăng âm lượng</item><item>Giảm âm lượng</item><item>Tắt / bật tiếng</item><item>Bật / tắt đèn pin</item>
+    </string-array>
+    <string-array name="action_values">
+        <item>0</item><item>1</item><item>2</item><item>3</item><item>4</item><item>5</item><item>6</item>
+        <item>7</item><item>8</item><item>9</item><item>10</item><item>11</item><item>12</item>
+    </string-array>
+    <string-array name="slot_entries">
+        <item>Báo thức</item><item>Bluetooth</item><item>Âm thanh / rung</item><item>Không làm phiền</item>
+        <item>Điểm phát Wi-Fi</item><item>Truyền màn hình</item><item>Vị trí (GPS)</item><item>NFC</item>
+        <item>Chế độ máy bay</item><item>VPN</item><item>Tai nghe</item><item>Xoay màn hình</item>
+        <item>Tiết kiệm dữ liệu</item><item>Sóng cuộc gọi</item><item>Bàn phím</item><item>Hồ sơ công việc</item>
+        <item>Cảm biến tắt</item><item>Loa ngoài</item><item>Tắt tiếng</item><item>Đồng bộ lỗi</item>
+        <item>Ethernet</item><item>Sóng di động</item><item>Wi-Fi</item><item>Không có SIM</item>
+    </string-array>
+    <string-array name="slot_values">
+        <item>alarm_clock</item><item>bluetooth</item><item>volume</item><item>zen</item>
+        <item>hotspot</item><item>cast</item><item>location</item><item>nfc</item>
+        <item>airplane</item><item>vpn</item><item>headset</item><item>rotate</item>
+        <item>data_saver</item><item>call_strength</item><item>ime</item><item>managed_profile</item>
+        <item>sensors_off</item><item>speakerphone</item><item>mute</item><item>sync_failing</item>
+        <item>ethernet</item><item>mobile</item><item>wifi</item><item>no_sim</item>
+    </string-array>
 </resources>

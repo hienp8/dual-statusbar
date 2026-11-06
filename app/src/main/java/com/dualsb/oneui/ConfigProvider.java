@@ -7,13 +7,16 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
+import android.text.TextUtils;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
-/** SystemUI đọc cấu hình + ảnh qua provider này (SystemUI không đọc được thư mục private của app). */
+/** SystemUI đọc cấu hình + ảnh qua provider này; đồng thời báo lên danh sách biểu tượng đã thấy. */
 public class ConfigProvider extends ContentProvider {
     @Override public boolean onCreate() {
         try { Storage.migrate(getContext()); } catch (Throwable ignored) {}
@@ -22,14 +25,27 @@ public class ConfigProvider extends ContentProvider {
 
     @Override
     public Bundle call(String method, String arg, Bundle extras) {
-        Bundle out = new Bundle();
         SharedPreferences sp = Storage.prefs(getContext());
+        if ("report_slots".equals(method)) {
+            if (arg != null && !arg.isEmpty()) {
+                Set<String> cur = new HashSet<>(sp.getStringSet("known_slots", new HashSet<String>()));
+                boolean changed = false;
+                for (String s : arg.split(",")) {
+                    s = s.trim();
+                    if (!s.isEmpty() && cur.add(s)) changed = true;
+                }
+                if (changed) sp.edit().putStringSet("known_slots", cur).apply();
+            }
+            return new Bundle();
+        }
+        Bundle out = new Bundle();
         for (Map.Entry<String, ?> e : sp.getAll().entrySet()) {
             Object v = e.getValue();
             if (v instanceof Boolean) out.putBoolean(e.getKey(), (Boolean) v);
             else if (v instanceof Integer) out.putInt(e.getKey(), (Integer) v);
             else if (v instanceof Long) out.putLong(e.getKey(), (Long) v);
             else if (v instanceof String) out.putString(e.getKey(), (String) v);
+            else if (v instanceof Set) out.putString(e.getKey(), TextUtils.join(",", (Set<?>) v));
         }
         for (String n : Config.IMAGES) {
             File f = new File(Storage.dir(getContext()), n + ".png");

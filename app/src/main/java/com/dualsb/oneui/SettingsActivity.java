@@ -12,11 +12,13 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.preference.MultiSelectListPreference;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 import androidx.preference.PreferenceScreen;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
@@ -28,6 +30,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Set;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -110,6 +115,9 @@ public class SettingsActivity extends AppCompatActivity
                     return true;
                 });
             }
+            MultiSelectListPreference ms = findPreference("hidden_slots");
+            if (ms != null) refreshSlots(ms);
+
             Preference ex = findPreference("backup_export");
             if (ex != null) ex.setOnPreferenceClickListener(p -> {
                 exporter.launch("dualsb_backup.zip");
@@ -122,11 +130,42 @@ public class SettingsActivity extends AppCompatActivity
             });
         }
 
+        /** Gộp danh sách biểu tượng mặc định với những biểu tượng SystemUI đã báo về. */
+        private void refreshSlots(MultiSelectListPreference ms) {
+            Map<String, String> m = new LinkedHashMap<>();
+            CharSequence[] ev = ms.getEntryValues(), en = ms.getEntries();
+            if (ev != null)
+                for (int i = 0; i < ev.length; i++)
+                    m.put(ev[i].toString(), en != null && i < en.length ? en[i].toString() : ev[i].toString());
+            Set<String> known = prefs().getStringSet("known_slots", null);
+            if (known != null) for (String k : known) if (!m.containsKey(k)) m.put(k, k);
+            ms.setEntries(m.values().toArray(new CharSequence[0]));
+            ms.setEntryValues(m.keySet().toArray(new CharSequence[0]));
+        }
+
         // ------------------------------------------------------------------ ảnh
 
         private void save(Uri uri, String name) {
             Context c = requireContext();
             try {
+                if (name.startsWith("nav_")) {                 // giữ nguyên file gốc để GIF vẫn chuyển động
+                    File out = new File(Storage.dir(c), name + ".png");
+                    long total = 0;
+                    try (InputStream in = c.getContentResolver().openInputStream(uri);
+                         FileOutputStream fo = new FileOutputStream(out)) {
+                        byte[] buf = new byte[8192];
+                        int r;
+                        while ((r = in.read(buf)) > 0) {
+                            total += r;
+                            if (total > 12L * 1024 * 1024) throw new IOException("Ảnh quá lớn (tối đa 12 MB)");
+                            fo.write(buf, 0, r);
+                        }
+                    }
+                    out.setLastModified(System.currentTimeMillis());
+                    notifyChanged(c);
+                    Toast.makeText(c, "Đã lưu ảnh", Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 BitmapFactory.Options o = new BitmapFactory.Options();
                 o.inJustDecodeBounds = true;
                 try (InputStream in = c.getContentResolver().openInputStream(uri)) {
@@ -164,7 +203,16 @@ public class SettingsActivity extends AppCompatActivity
             try (OutputStream os = c.getContentResolver().openOutputStream(uri);
                  ZipOutputStream z = new ZipOutputStream(os)) {
                 JSONObject o = new JSONObject();
-                for (Map.Entry<String, ?> e : prefs().getAll().entrySet()) o.put(e.getKey(), e.getValue());
+                for (Map.Entry<String, ?> e : prefs().getAll().entrySet()) {
+                    Object v = e.getValue();
+                    if (v instanceof Set) {
+                        JSONArray a = new JSONArray();
+                        for (Object x : (Set<?>) v) a.put(x);
+                        o.put(e.getKey(), a);
+                    } else {
+                        o.put(e.getKey(), v);
+                    }
+                }
                 z.putNextEntry(new ZipEntry("settings.json"));
                 z.write(o.toString(2).getBytes("UTF-8"));
                 z.closeEntry();
@@ -217,6 +265,12 @@ public class SettingsActivity extends AppCompatActivity
                     if (v instanceof Boolean) ed.putBoolean(k, (Boolean) v);
                     else if (v instanceof Number) ed.putInt(k, ((Number) v).intValue());
                     else if (v instanceof String) ed.putString(k, (String) v);
+                    else if (v instanceof JSONArray) {
+                        Set<String> set = new HashSet<>();
+                        JSONArray a = (JSONArray) v;
+                        for (int i = 0; i < a.length(); i++) set.add(a.getString(i));
+                        ed.putStringSet(k, set);
+                    }
                 }
                 ed.apply();
 
@@ -253,6 +307,7 @@ public class SettingsActivity extends AppCompatActivity
             prefs().unregisterOnSharedPreferenceChangeListener(this);
         }
         @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
+            if ("known_slots".equals(key)) return;
             notifyChanged(requireContext());
         }
     }

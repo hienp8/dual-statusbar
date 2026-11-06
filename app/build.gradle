@@ -23,7 +23,7 @@ android {
         targetSdk 34
         // Tự tăng theo số lần build trên GitHub để luôn cài đè được bản cũ
         versionCode runNumber + 100
-        versionName '0.2'
+        versionName '0.3'
     }
     buildTypes {
         debug { signingConfig signingConfigs.shared }
@@ -31,6 +31,11 @@ android {
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
+// File APK xuất ra luôn tên là "Dualline SB.apk"
+android.applicationVariants.all { variant ->
+    variant.outputs.all { outputFileName = "Dualline SB.apk" }
+}
+
 dependencies {
     compileOnly 'de.robv.android.xposed:api:82'
     // Nếu repo api.xposed.info lỗi: tải XposedBridgeAPI-82.jar vào app/libs và dùng dòng dưới thay cho dòng trên
