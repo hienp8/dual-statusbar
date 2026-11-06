@@ -113,8 +113,13 @@ final class BatteryRingView extends View {
         track.setColor(col);
         track.setAlpha(60);
         arc.setColor(col);
-        float seg = 135f - gap / 2f;
-        float s1 = 135f, s2 = 270f + gap / 2f;
+        // chấm sóng to hơn; cung pin chừa khoảng trống rộng hơn quanh các chấm để không chạm nhau
+        float dr = Math.max(1.8f, stroke * 0.8f);
+        float step = Math.max(21f, (float) Math.toDegrees(2.9f * dr / r));
+        float clear = (float) Math.toDegrees((stroke / 2f + dr) / r) + 7f;
+        float halfOpen = Math.max(65f, Math.min(105f, 2f * step + clear));
+        float seg = Math.max(5f, (360f - 2f * halfOpen) / 2f - gap / 2f);
+        float s1 = 90f + halfOpen, s2 = 270f + gap / 2f;
         c.drawArc(oval, s1, seg, false, track);
         c.drawArc(oval, s2, seg, false, track);
         float fillDeg = 2f * seg * Math.max(0, Math.min(100, level)) / 100f;
@@ -145,11 +150,10 @@ final class BatteryRingView extends View {
         // ---- 5 chấm sóng di động theo đường cong phía dưới
         if (showDots) {
             int lit = sigLevel < 0 ? 0 : Math.min(5, sigLevel + 1);
-            float dr = Math.max(1.2f, stroke * 0.55f);
             net.setStyle(Paint.Style.FILL);
             net.setColor(colNormal);
             for (int i = 0; i < 5; i++) {
-                double a = Math.toRadians(90 + (i - 2) * 18f);
+                double a = Math.toRadians(90 + (i - 2) * step);
                 net.setAlpha(i < lit ? 255 : 70);
                 c.drawCircle((float) (cx + r * Math.cos(a)), (float) (cy + r * Math.sin(a)), dr, net);
             }

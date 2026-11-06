@@ -57,7 +57,7 @@ final class NavStyle {
     private static final class Holder {
         Drawable icon;
         long stamp;
-        int px;
+        int px, w, h;
         float dark;
         String tint = "orig";
     }
@@ -141,6 +141,19 @@ final class NavStyle {
         return null;
     }
 
+    /** Cho phép biểu tượng lớn hơn vùng nút mà không bị các view cha cắt. */
+    private static void noClip(View v) {
+        View c = v;
+        for (int i = 0; c != null && i < 6; i++) {
+            if (c instanceof ViewGroup) {
+                ((ViewGroup) c).setClipChildren(false);
+                ((ViewGroup) c).setClipToPadding(false);
+            }
+            android.view.ViewParent pp = c.getParent();
+            c = pp instanceof View ? (View) pp : null;
+        }
+    }
+
     private static String sizeKey(String name) {
         if ("nav_back".equals(name)) return Config.NAV_BACK_SIZE;
         if ("nav_home".equals(name)) return Config.NAV_HOME_SIZE;
@@ -150,6 +163,7 @@ final class NavStyle {
     private static void attach(final View v) {
         if (!(v instanceof ImageView)) return;
         BUTTONS.add(v);
+        noClip(v);
         v.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
             @Override public void onLayoutChange(View view, int l, int t, int r, int b,
                                                  int ol, int ot, int or2, int ob) {
@@ -190,11 +204,12 @@ final class NavStyle {
         int px = Math.max(1, Math.round(Config.getInt(b, sizeKey(name)) * d));
         if (h == null || h.stamp != stamp || h.px != px) {
             if (h != null) v.getOverlay().remove(h.icon);
-            Drawable icon = decode(v.getContext(), name, px);
+            int[] sz = new int[2];
+            Drawable icon = decode(v.getContext(), name, px, sz);
             if (icon == null) { HOLDERS.remove(v); return; }
             float keepDark = h == null ? 0f : h.dark;
             h = new Holder();
-            h.icon = icon; h.stamp = stamp; h.px = px; h.dark = keepDark;
+            h.icon = icon; h.stamp = stamp; h.px = px; h.w = sz[0]; h.h = sz[1]; h.dark = keepDark;
             v.getOverlay().add(icon);
             HOLDERS.put(v, h);
             v.invalidate();                               // biểu tượng gốc sẽ bị bỏ qua khi vẽ (hook onDraw)
@@ -204,7 +219,7 @@ final class NavStyle {
         layoutIcon(v, h);
     }
 
-    private static Drawable decode(Context ctx, String name, final int px) {
+    private static Drawable decode(Context ctx, String name, final int px, final int[] outSize) {
         try {
             ImageDecoder.Source src = ImageDecoder.createSource(ctx.getContentResolver(),
                     Uri.parse(Config.IMG_URI + name));
@@ -213,8 +228,11 @@ final class NavStyle {
                                                       ImageDecoder.Source s) {
                     Size sz = info.getSize();
                     float sc = Math.min((float) px / sz.getWidth(), (float) px / sz.getHeight());
-                    decoder.setTargetSize(Math.max(1, Math.round(sz.getWidth() * sc)),
-                            Math.max(1, Math.round(sz.getHeight() * sc)));
+                    int tw = Math.max(1, Math.round(sz.getWidth() * sc));
+                    int th = Math.max(1, Math.round(sz.getHeight() * sc));
+                    outSize[0] = tw;
+                    outSize[1] = th;
+                    decoder.setTargetSize(tw, th);
                 }
             });
             if (d instanceof AnimatedImageDrawable) {                    // GIF / WebP động
@@ -230,8 +248,9 @@ final class NavStyle {
     }
 
     private static void layoutIcon(View v, Holder h) {
-        int iw = h.icon.getIntrinsicWidth() > 0 ? h.icon.getIntrinsicWidth() : h.px;
-        int ih = h.icon.getIntrinsicHeight() > 0 ? h.icon.getIntrinsicHeight() : h.px;
+        // dùng đúng kích thước theo thanh trượt (kích thước nội tại của drawable có thể bị nhân theo mật độ màn hình)
+        int iw = h.w > 0 ? h.w : h.px;
+        int ih = h.h > 0 ? h.h : h.px;
         int l = (v.getWidth() - iw) / 2, t = (v.getHeight() - ih) / 2;
         h.icon.setBounds(l, t, l + iw, t + ih);
         v.invalidate();

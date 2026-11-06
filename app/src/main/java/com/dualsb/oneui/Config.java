@@ -57,15 +57,13 @@ public final class Config {
     public static final String TIME_DX = "time_dx";
     public static final String TIME_DY = "time_dy";
     public static final String TIME_COLOR = "time_color";
+    public static final String TIME_CONTENT = "time_content";    // 0 chỉ giờ, 1 giờ + dương lịch, 2 chỉ dương lịch
+    public static final String TIME_LAYOUT = "time_layout";      // 0 cùng một dòng, 1 hai dòng
 
     // dương lịch (tách riêng)
-    public static final String SOLAR_ENABLED = "solar_enabled";
     public static final String SOLAR_FMT = "solar_format";
     public static final String SOLAR_CUSTOM = "solar_custom";
-    public static final String SOLAR_POS = "solar_pos";
     public static final String SOLAR_SIZE = "solar_size";
-    public static final String SOLAR_DX = "solar_dx";
-    public static final String SOLAR_DY = "solar_dy";
     public static final String SOLAR_COLOR = "solar_color";
 
     // âm lịch (tách riêng)
@@ -158,7 +156,6 @@ public final class Config {
             case LABEL_SIZE: return 11;
             case TIME_POS: return 0;
             case TIME_SIZE: return 14;
-            case SOLAR_POS: return 6;
             case SOLAR_SIZE: return 11;
             case LUNAR_POS: return 8;
             case LUNAR_SIZE: return 10;
@@ -184,7 +181,6 @@ public final class Config {
             case DIG_REPLACE:
             case RING_ENABLED:
             case TIME_ENABLED:
-            case SOLAR_ENABLED:
             case LUNAR_ENABLED:
             case HIDE_NOTIF:
             case NAV_ENABLED:

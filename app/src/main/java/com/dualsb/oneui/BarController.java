@@ -39,6 +39,7 @@ import android.view.ViewParent;
 import android.view.ViewStub;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextClock;
 import android.widget.TextView;
@@ -87,6 +88,8 @@ final class BarController {
     private AnalogClockView analog;
     private TextView label;
     private TextClock timeClock;
+    private LinearLayout timeBox;
+    private boolean hideClockOn;
     private TextView solarText, lunarText;
     private BatteryRingView ring;
 
@@ -266,7 +269,9 @@ final class BarController {
         labelText = Config.getString(b, Config.LABEL_TEXT);
         boolean lb = labelMode != 0;
         boolean tm = enabled && Config.getBool(b, Config.TIME_ENABLED);
-        solarOn = enabled && Config.getBool(b, Config.SOLAR_ENABLED);
+        int timeContent = Config.getInt(b, Config.TIME_CONTENT);      // 0 chỉ giờ, 1 giờ + dương lịch, 2 chỉ dương lịch
+        boolean showTime = tm && timeContent != 2;
+        solarOn = tm && timeContent != 0;
         lunarOn = enabled && Config.getBool(b, Config.LUNAR_ENABLED);
         boolean rg = enabled && Config.getBool(b, Config.RING_ENABLED);
 
@@ -277,7 +282,8 @@ final class BarController {
             overlay.setVisibility(needOverlay ? View.VISIBLE : View.GONE);
             analog.setVisibility(an ? View.VISIBLE : View.GONE);
             label.setVisibility(lb ? View.VISIBLE : View.GONE);
-            timeClock.setVisibility(tm ? View.VISIBLE : View.GONE);
+            timeBox.setVisibility(tm ? View.VISIBLE : View.GONE);
+            timeClock.setVisibility(showTime ? View.VISIBLE : View.GONE);
             solarText.setVisibility(solarOn ? View.VISIBLE : View.GONE);
             lunarText.setVisibility(lunarOn ? View.VISIBLE : View.GONE);
             ring.setVisibility(rg ? View.VISIBLE : View.GONE);
@@ -297,21 +303,26 @@ final class BarController {
                 refreshLabel();
             }
             if (tm) {
-                put(timeClock, Config.getInt(b, Config.TIME_POS), -2, -2,
+                put(timeBox, Config.getInt(b, Config.TIME_POS), -2, -2,
                         Config.getInt(b, Config.TIME_DX) * d, Config.getInt(b, Config.TIME_DY) * d);
+                boolean vertical = Config.getInt(b, Config.TIME_LAYOUT) == 1;
+                timeBox.setOrientation(vertical ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
+                timeBox.setGravity(vertical ? Gravity.CENTER_HORIZONTAL : Gravity.CENTER_VERTICAL);
                 String fmt = Config.getString(b, Config.TIME_FMT);
                 timeClock.setFormat24Hour(fmt);
                 timeClock.setFormat12Hour(fmt);
                 timeClock.setTextSize(TypedValue.COMPLEX_UNIT_SP, Config.getInt(b, Config.TIME_SIZE));
                 timeClock.setTextColor(colorOf(b, Config.TIME_COLOR));
-            }
-            if (solarOn) {
-                solarFmt = Config.getString(b, Config.SOLAR_FMT);
-                solarCustom = Config.getString(b, Config.SOLAR_CUSTOM);
-                put(solarText, Config.getInt(b, Config.SOLAR_POS), -2, -2,
-                        Config.getInt(b, Config.SOLAR_DX) * d, Config.getInt(b, Config.SOLAR_DY) * d);
-                solarText.setTextSize(TypedValue.COMPLEX_UNIT_SP, Config.getInt(b, Config.SOLAR_SIZE));
-                solarText.setTextColor(colorOf(b, Config.SOLAR_COLOR));
+                if (solarOn) {
+                    solarFmt = Config.getString(b, Config.SOLAR_FMT);
+                    solarCustom = Config.getString(b, Config.SOLAR_CUSTOM);
+                    solarText.setTextSize(TypedValue.COMPLEX_UNIT_SP, Config.getInt(b, Config.SOLAR_SIZE));
+                    solarText.setTextColor(colorOf(b, Config.SOLAR_COLOR));
+                    LinearLayout.LayoutParams sl = (LinearLayout.LayoutParams) solarText.getLayoutParams();
+                    sl.leftMargin = (!vertical && showTime) ? Math.round(6 * d) : 0;
+                    sl.topMargin = (vertical && showTime) ? Math.round(d) : 0;
+                    solarText.setLayoutParams(sl);
+                }
             }
             if (lunarOn) {
                 lunarFmt = Config.getInt(b, Config.LUNAR_FMT);
@@ -344,8 +355,7 @@ final class BarController {
         }
 
         // ẩn đồng hồ số gốc / pin gốc (chỉ làm mờ, không đổi cấu trúc view của Samsung)
-        boolean hideClock = enabled && Config.getBool(b, Config.DIG_REPLACE);
-        if (clock != null) clock.setAlpha(hideClock ? 0f : 1f);
+        hideClockOn = enabled && Config.getBool(b, Config.DIG_REPLACE);   // việc ẩn được giữ ở applyHides() cho khỏi bị Samsung đặt lại
         moduleOn = enabled;
         hideNotif = Config.getBool(b, Config.HIDE_NOTIF);
         hiddenSlots.clear();
@@ -402,8 +412,11 @@ final class BarController {
         ring = new BatteryRingView(ctx);
         overlay.addView(analog, new FrameLayout.LayoutParams(1, 1));
         overlay.addView(label, new FrameLayout.LayoutParams(-2, -2));
-        overlay.addView(timeClock, new FrameLayout.LayoutParams(-2, -2));
-        overlay.addView(solarText, new FrameLayout.LayoutParams(-2, -2));
+        timeBox = new LinearLayout(ctx);                       // giờ + dương lịch là một khối, dời chung một vị trí
+        timeBox.setClipChildren(false);
+        timeBox.addView(timeClock, new LinearLayout.LayoutParams(-2, -2));
+        timeBox.addView(solarText, new LinearLayout.LayoutParams(-2, -2));
+        overlay.addView(timeBox, new FrameLayout.LayoutParams(-2, -2));
         overlay.addView(lunarText, new FrameLayout.LayoutParams(-2, -2));
         overlay.addView(ring, new FrameLayout.LayoutParams(1, 1));
         contents.addView(overlay, new RelativeLayout.LayoutParams(
@@ -469,7 +482,7 @@ final class BarController {
     private static final Map<Class<?>, Method> SLOT_METHODS = new HashMap<>();
 
     /** StatusBarIconView / ModernStatusBarView đều có getSlot() cho biết tên "slot" của biểu tượng. */
-    private static String slotOf(View v) {
+    static String slotOf(View v) {
         Class<?> k = v.getClass();
         Method m;
         synchronized (SLOT_METHODS) {
@@ -548,6 +561,7 @@ final class BarController {
             for (Map.Entry<String, View> e : slotViews.entrySet())
                 if (hiddenSlots.contains(e.getKey())) want.add(e.getValue());
             if (hideNotif && notif != null) want.add(notif);
+            if (hideClockOn && clock != null) want.add(clock);
         }
         Set<View> all = new HashSet<>(hidden);
         all.addAll(want);
