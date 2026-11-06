@@ -137,4 +137,12 @@
         <item>sensors_off</item><item>speakerphone</item><item>mute</item><item>sync_failing</item>
         <item>ethernet</item><item>mobile</item><item>wifi</item><item>no_sim</item>
     </string-array>
+    <string-array name="time_content_entries">
+        <item>Chỉ giờ</item><item>Giờ kèm dương lịch</item><item>Chỉ dương lịch</item>
+    </string-array>
+    <string-array name="time_content_values"><item>0</item><item>1</item><item>2</item></string-array>
+    <string-array name="time_layout_entries">
+        <item>Cùng một dòng</item><item>Hai dòng (dương lịch bên dưới giờ)</item>
+    </string-array>
+    <string-array name="time_layout_values"><item>0</item><item>1</item></string-array>
 </resources>
