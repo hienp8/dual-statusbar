@@ -40,44 +40,39 @@
                 app:min="0" android:max="100" app:showSeekBarValue="true" android:defaultValue="100" />
     </PreferenceScreen>
 
-    <PreferenceScreen android:key="scr_time" android:title="Giờ" android:summary="Đồng hồ số tách riêng khỏi ngày">
-            <SwitchPreferenceCompat android:key="digital_replace" android:title="Ẩn đồng hồ số gốc của Samsung" android:summary="Áp dụng cho mọi nơi: giờ, ngày, đồng hồ analog. Bật khi bạn dùng giờ riêng của module hoặc đồng hồ analog" android:defaultValue="false" />
-            <SwitchPreferenceCompat android:key="time_enabled" android:title="Hiện giờ" android:defaultValue="false" />
+    <PreferenceScreen android:key="scr_time" android:title="Giờ &amp; dương lịch" android:summary="Chỉ giờ, giờ kèm dương lịch hoặc chỉ dương lịch">
+            <SwitchPreferenceCompat android:key="digital_replace" android:title="Ẩn đồng hồ số gốc của Samsung" android:summary="Bật khi bạn dùng giờ / ngày của module hoặc đồng hồ analog. Đây là nơi duy nhất điều khiển việc ẩn" android:defaultValue="false" />
+            <SwitchPreferenceCompat android:key="time_enabled" android:title="Hiện giờ / ngày của module" android:defaultValue="false" />
+            <ListPreference android:key="time_content" android:title="Nội dung hiển thị"
+                android:entries="@array/time_content_entries" android:entryValues="@array/time_content_values"
+                android:defaultValue="0" app:useSimpleSummaryProvider="true" />
+            <ListPreference android:key="time_layout" android:title="Cách xếp giờ và ngày"
+                android:entries="@array/time_layout_entries" android:entryValues="@array/time_layout_values"
+                android:defaultValue="0" app:useSimpleSummaryProvider="true" />
             <ListPreference android:key="time_format" android:title="Kiểu giờ"
                 android:entries="@array/time_fmt_entries" android:entryValues="@array/time_fmt_values"
                 android:defaultValue="HH:mm" app:useSimpleSummaryProvider="true" />
-            <ListPreference android:key="time_pos" android:title="Vị trí"
+            <ListPreference android:key="solar_format" android:title="Kiểu dương lịch"
+                android:entries="@array/date_fmt_entries" android:entryValues="@array/date_fmt_values"
+                android:defaultValue="EEE, d MMM" app:useSimpleSummaryProvider="true" />
+            <EditTextPreference android:key="solar_custom" android:title="Kiểu dương lịch tự gõ (tuỳ chọn)"
+                android:summary="Mẫu SimpleDateFormat, ví dụ: EEEE, dd/MM/yyyy. Để trống để dùng kiểu ở trên"
+                android:defaultValue="" />
+            <ListPreference android:key="time_pos" android:title="Vị trí (cả giờ và ngày)"
                 android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
                 android:defaultValue="0" app:useSimpleSummaryProvider="true" />
-            <SeekBarPreference android:key="time_size" android:title="Cỡ chữ (sp)"
-                app:min="8" android:max="28" app:showSeekBarValue="true" android:defaultValue="14" />
             <SeekBarPreference android:key="time_dx" android:title="Dịch ngang (dp)"
                 app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
             <SeekBarPreference android:key="time_dy" android:title="Dịch dọc (dp)"
                 app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
-            <ListPreference android:key="time_color" android:title="Màu chữ"
+            <SeekBarPreference android:key="time_size" android:title="Cỡ chữ giờ (sp)"
+                app:min="8" android:max="28" app:showSeekBarValue="true" android:defaultValue="14" />
+            <SeekBarPreference android:key="solar_size" android:title="Cỡ chữ dương lịch (sp)"
+                app:min="6" android:max="24" app:showSeekBarValue="true" android:defaultValue="11" />
+            <ListPreference android:key="time_color" android:title="Màu giờ"
                 android:entries="@array/color_auto_entries" android:entryValues="@array/color_auto_values"
                 android:defaultValue="auto" app:useSimpleSummaryProvider="true" />
-    </PreferenceScreen>
-
-    <PreferenceScreen android:key="scr_solar" android:title="Dương lịch" android:summary="Hiển thị, kiểu, kích thước, vị trí, màu">
-            <SwitchPreferenceCompat android:key="solar_enabled" android:title="Hiện dương lịch" android:defaultValue="false" />
-            <ListPreference android:key="solar_format" android:title="Kiểu dương lịch"
-                android:entries="@array/date_fmt_entries" android:entryValues="@array/date_fmt_values"
-                android:defaultValue="EEE, d MMM" app:useSimpleSummaryProvider="true" />
-            <EditTextPreference android:key="solar_custom" android:title="Kiểu tự gõ (tuỳ chọn)"
-                android:summary="Mẫu SimpleDateFormat, ví dụ: EEEE, dd/MM/yyyy. Để trống để dùng kiểu ở trên"
-                android:defaultValue="" />
-            <ListPreference android:key="solar_pos" android:title="Vị trí"
-                android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
-                android:defaultValue="6" app:useSimpleSummaryProvider="true" />
-            <SeekBarPreference android:key="solar_size" android:title="Cỡ chữ (sp)"
-                app:min="6" android:max="24" app:showSeekBarValue="true" android:defaultValue="11" />
-            <SeekBarPreference android:key="solar_dx" android:title="Dịch ngang (dp)"
-                app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
-            <SeekBarPreference android:key="solar_dy" android:title="Dịch dọc (dp)"
-                app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
-            <ListPreference android:key="solar_color" android:title="Màu chữ"
+            <ListPreference android:key="solar_color" android:title="Màu dương lịch"
                 android:entries="@array/color_auto_entries" android:entryValues="@array/color_auto_values"
                 android:defaultValue="auto" app:useSimpleSummaryProvider="true" />
     </PreferenceScreen>
