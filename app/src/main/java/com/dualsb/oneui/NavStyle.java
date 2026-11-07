@@ -53,6 +53,14 @@ final class NavStyle {
     private static final Set<View> BUTTONS = Collections.newSetFromMap(new WeakHashMap<View, Boolean>());
     private static final Map<View, Holder> HOLDERS = new WeakHashMap<>();
     private static final Map<View, Press> PRESS = new WeakHashMap<>();
+    private static final Map<View, GlowState> GLOWS = new WeakHashMap<>();
+
+    private static final class GlowState {
+        Drawable orig;          // nền gốc (hiệu ứng nhấn mặc định của Samsung) để trả lại khi tắt
+        long stamp;
+        int px, alpha;
+        long dur;
+    }
 
     private static final class Holder {
         Drawable icon;
@@ -187,6 +195,7 @@ final class NavStyle {
         Bundle b = cfg;
         String name = nameOf(v);
         if (name == null || !(v instanceof ImageView)) return;
+        refreshGlow(v, b);
         ImageView iv = (ImageView) v;
         boolean on = b != null && Config.getBool(b, Config.ENABLED) && Config.getBool(b, Config.NAV_ENABLED)
                 && b.getLong("img_" + name, 0) != 0;
@@ -217,6 +226,37 @@ final class NavStyle {
         h.tint = Config.getString(b, Config.NAV_TINT);
         applyTint(h);
         layoutIcon(v, h);
+    }
+
+    /** Ảnh glow thay cho hiệu ứng nhấn mờ mặc định: đặt làm nền của nút (vẽ phía dưới biểu tượng). */
+    private static void refreshGlow(View v, Bundle b) {
+        boolean on = b != null && Config.getBool(b, Config.ENABLED) && Config.getBool(b, Config.NAV_ENABLED)
+                && b.getLong("img_nav_glow", 0) != 0;
+        GlowState st = GLOWS.get(v);
+        if (!on) {
+            if (st != null) {
+                v.setBackground(st.orig);
+                GLOWS.remove(v);
+            }
+            return;
+        }
+        long stamp = b.getLong("img_nav_glow", 0);
+        float d = v.getResources().getDisplayMetrics().density;
+        int px = Math.max(1, Math.round(Config.getInt(b, Config.NAV_GLOW_SIZE) * d));
+        long dur = Config.getInt(b, Config.NAV_GLOW_TIME);
+        int alpha = Config.getInt(b, Config.NAV_GLOW_ALPHA);
+        if (st != null && st.stamp == stamp && st.px == px && st.dur == dur && st.alpha == alpha) return;
+
+        int[] sz = new int[2];
+        Drawable img = decode(v.getContext(), "nav_glow", px, sz);
+        if (img == null) return;
+        if (st == null) {
+            st = new GlowState();
+            st.orig = v.getBackground();
+            GLOWS.put(v, st);
+        }
+        st.stamp = stamp; st.px = px; st.dur = dur; st.alpha = alpha;
+        v.setBackground(new GlowDrawable(img, sz[0], sz[1], alpha / 100f, dur));
     }
 
     private static Drawable decode(Context ctx, String name, final int px, final int[] outSize) {

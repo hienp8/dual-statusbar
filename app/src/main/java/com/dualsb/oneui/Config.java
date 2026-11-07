@@ -10,7 +10,7 @@ public final class Config {
     public static final String CONFIG_URI = "content://" + AUTHORITY + "/config";
     public static final String IMG_URI = "content://" + AUTHORITY + "/img/";
     /** Ảnh nav_* được lưu nguyên bản (giữ GIF động); các ảnh còn lại được nén lại thành PNG. */
-    public static final String[] IMAGES = {"bg", "dial", "hour", "minute", "second", "nav_back", "nav_home", "nav_recent"};
+    public static final String[] IMAGES = {"bg", "dial", "hour", "minute", "second", "nav_back", "nav_home", "nav_recent", "nav_glow"};
     public static final String SETTING_HEIGHT_PX = "dualsb_height_px";
     public static final String SETTING_NAV_PX = "dualsb_nav_px";
 
@@ -22,6 +22,9 @@ public final class Config {
     public static final String POS_ICONS = "pos_icons";
     public static final String CHIP_FWD = "chip_forward_touch";
     public static final String KG_ROW = "kg_row";
+    public static final String DX_CLOCK = "dx_clock";            // dịch ngang riêng (dp) cho đồng hồ gốc
+    public static final String DX_NOTIF = "dx_notif";            // ... biểu tượng thông báo (và Now Bar đi cùng)
+    public static final String DX_ICONS = "dx_icons";            // ... biểu tượng hệ thống
     public static final String POS_CHIP = "pos_chip";            // -2 = theo thông báo, -1 = không di chuyển
     public static final String BG_ENABLED = "bg_enabled";
     public static final String BG_SCALE = "bg_scale";
@@ -112,6 +115,9 @@ public final class Config {
     public static final String EDGE_HAPTIC = "edge_haptic";
     public static final String EDGE_PREVIEW = "edge_preview";              // đang chỉnh vị trí: hiện vùng xám nhạt
     public static final String EDGE_PREVIEW_TS = "edge_preview_ts";
+    public static final String NAV_GLOW_SIZE = "nav_glow_size";
+    public static final String NAV_GLOW_TIME = "nav_glow_time";
+    public static final String NAV_GLOW_ALPHA = "nav_glow_alpha";
     public static final String NAV_BACK_SIZE = "nav_back_size";
     public static final String NAV_HOME_SIZE = "nav_home_size";
     public static final String NAV_RECENT_SIZE = "nav_recent_size";
@@ -165,6 +171,9 @@ public final class Config {
             case RING_STROKE: return 2;
             case RING_LOW_LEVEL: return 20;
             case NAV_HEIGHT: return 48;
+            case NAV_GLOW_SIZE: return 72;
+            case NAV_GLOW_TIME: return 350;
+            case NAV_GLOW_ALPHA: return 70;
             case NAV_BACK_SIZE:
             case NAV_HOME_SIZE:
             case NAV_RECENT_SIZE: return 24;

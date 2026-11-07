@@ -90,6 +90,7 @@ final class BarController {
     private TextClock timeClock;
     private LinearLayout timeBox;
     private boolean hideClockOn;
+    private float dxClock, dxNotif, dxIcons;               // dịch ngang riêng (px)
     private TextView solarText, lunarText;
     private BatteryRingView ring;
 
@@ -256,6 +257,9 @@ final class BarController {
         cells[1] = dual ? Config.getInt(b, Config.POS_NOTIF) : -1;
         cells[2] = dual ? Config.getInt(b, Config.POS_ICONS) : -1;
         cells[3] = dual ? Config.getInt(b, Config.POS_CHIP) : -1;
+        dxClock = enabled ? Config.getInt(b, Config.DX_CLOCK) * d : 0f;
+        dxNotif = enabled ? Config.getInt(b, Config.DX_NOTIF) * d : 0f;
+        dxIcons = enabled ? Config.getInt(b, Config.DX_ICONS) * d : 0f;
 
         // hình nền
         Bitmap bg = (enabled && Config.getBool(b, Config.BG_ENABLED)) ? img("bg", b) : null;
@@ -786,17 +790,17 @@ final class BarController {
         }
         collectChips(chipItems);
 
-        placeRow(clockItems, cells[0]);
-        placeRow(sysItems, cells[2]);
+        placeRow(clockItems, cells[0], dxClock);
+        placeRow(sysItems, cells[2], dxIcons);
         int nc = cells[1];
         int cc = cells[3] == -2 ? nc : cells[3];
         if (nc >= 0 && cc == nc) {                       // Now Bar đi cùng nhóm thông báo: [Now Bar][icon thông báo]
             List<Item> row = new ArrayList<>(chipItems);
             row.addAll(notifItems);
-            placeRow(row, nc);
+            placeRow(row, nc, dxNotif);
         } else {
-            placeRow(notifItems, nc);
-            placeRow(chipItems, cc);
+            placeRow(notifItems, nc, dxNotif);
+            placeRow(chipItems, cc, dxNotif);
         }
         syncProxies(chipItems, chipFwd && cc >= 0);
     }
@@ -854,9 +858,12 @@ final class BarController {
     }
 
     /** Xếp các view liên tiếp nhau vào ô cell (0..8); cell < 0 thì trả về vị trí gốc. */
-    private void placeRow(List<Item> items, int cell) {
+    private void placeRow(List<Item> items, int cell, float dx) {
         if (items.isEmpty()) return;
-        if (cell < 0 || cell > 8) { for (Item it : items) reset(it.v); return; }
+        if (cell < 0 || cell > 8) {                               // giữ nguyên hàng gốc, vẫn áp dụng dịch ngang riêng
+            for (Item it : items) { it.v.setTranslationX(dx); it.v.setTranslationY(0); }
+            return;
+        }
         int col = cell % 3, row = cell / 3;
         int W = contents.getWidth(), H = contents.getHeight();
         int pl = contents.getPaddingLeft(), pr = contents.getPaddingRight();
@@ -871,7 +878,7 @@ final class BarController {
 
         for (Item it : items) {
             int[] off = offsetIn(contents, it.v, false);
-            it.v.setTranslationX(x - (off[0] + it.minX));
+            it.v.setTranslationX(x - (off[0] + it.minX) + dx);
             it.v.setTranslationY(cy - (off[1] + it.v.getHeight() / 2f));
             x += it.w + gap;
         }
