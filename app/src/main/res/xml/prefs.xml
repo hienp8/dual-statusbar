@@ -7,7 +7,7 @@
 
     <PreferenceScreen android:key="scr_dual" android:title="Thanh 2 dòng" android:summary="Chiều cao và vị trí các biểu tượng gốc">
             <SwitchPreferenceCompat android:key="dual_enabled" android:title="Bật chế độ 2 dòng" android:summary="Đổi chiều cao nên khởi động lại máy để vùng nội dung ứng dụng khớp" android:defaultValue="true" />
-            <SeekBarPreference android:key="bar_height_dp" android:title="Chiều cao thanh (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="bar_height_dp" android:title="Chiều cao thanh (dp)"
                 app:min="24" android:max="80" app:showSeekBarValue="true" android:defaultValue="44" />
             <ListPreference android:key="pos_clock" android:title="Vị trí đồng hồ số gốc"
                 android:entries="@array/pos_entries_def" android:entryValues="@array/pos_values_def"
@@ -27,6 +27,12 @@
             <ListPreference android:key="pos_icons" android:title="Vị trí biểu tượng hệ thống + pin"
                 android:entries="@array/pos_entries_def" android:entryValues="@array/pos_values_def"
                 android:defaultValue="5" app:useSimpleSummaryProvider="true" />
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="dx_clock" android:title="Dịch ngang đồng hồ gốc (dp)"
+                app:min="-300" android:max="300" app:showSeekBarValue="true" android:defaultValue="0" />
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="dx_notif" android:title="Dịch ngang biểu tượng thông báo (dp)"
+                app:min="-300" android:max="300" app:showSeekBarValue="true" android:defaultValue="0" />
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="dx_icons" android:title="Dịch ngang biểu tượng hệ thống (dp)"
+                app:min="-300" android:max="300" app:showSeekBarValue="true" android:defaultValue="0" />
     </PreferenceScreen>
 
     <PreferenceScreen android:key="scr_bg" android:title="Hình nền" android:summary="Ảnh nền, kiểu hiển thị, độ mờ">
@@ -36,7 +42,7 @@
             <ListPreference android:key="bg_scale" android:title="Cách hiển thị"
                 android:entries="@array/scale_entries" android:entryValues="@array/scale_values"
                 android:defaultValue="0" app:useSimpleSummaryProvider="true" />
-            <SeekBarPreference android:key="bg_alpha" android:title="Độ mờ (%)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="bg_alpha" android:title="Độ mờ (%)"
                 app:min="0" android:max="100" app:showSeekBarValue="true" android:defaultValue="100" />
     </PreferenceScreen>
 
@@ -61,13 +67,13 @@
             <ListPreference android:key="time_pos" android:title="Vị trí (cả giờ và ngày)"
                 android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
                 android:defaultValue="0" app:useSimpleSummaryProvider="true" />
-            <SeekBarPreference android:key="time_dx" android:title="Dịch ngang (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="time_dx" android:title="Dịch ngang (dp)"
                 app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
-            <SeekBarPreference android:key="time_dy" android:title="Dịch dọc (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="time_dy" android:title="Dịch dọc (dp)"
                 app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
-            <SeekBarPreference android:key="time_size" android:title="Cỡ chữ giờ (sp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="time_size" android:title="Cỡ chữ giờ (sp)"
                 app:min="8" android:max="28" app:showSeekBarValue="true" android:defaultValue="14" />
-            <SeekBarPreference android:key="solar_size" android:title="Cỡ chữ dương lịch (sp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="solar_size" android:title="Cỡ chữ dương lịch (sp)"
                 app:min="6" android:max="24" app:showSeekBarValue="true" android:defaultValue="11" />
             <ListPreference android:key="time_color" android:title="Màu giờ"
                 android:entries="@array/color_auto_entries" android:entryValues="@array/color_auto_values"
@@ -85,11 +91,11 @@
             <ListPreference android:key="lunar_pos" android:title="Vị trí"
                 android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
                 android:defaultValue="8" app:useSimpleSummaryProvider="true" />
-            <SeekBarPreference android:key="lunar_size" android:title="Cỡ chữ (sp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="lunar_size" android:title="Cỡ chữ (sp)"
                 app:min="6" android:max="24" app:showSeekBarValue="true" android:defaultValue="10" />
-            <SeekBarPreference android:key="lunar_dx" android:title="Dịch ngang (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="lunar_dx" android:title="Dịch ngang (dp)"
                 app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
-            <SeekBarPreference android:key="lunar_dy" android:title="Dịch dọc (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="lunar_dy" android:title="Dịch dọc (dp)"
                 app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
             <ListPreference android:key="lunar_color" android:title="Màu chữ"
                 android:entries="@array/color_auto_entries" android:entryValues="@array/color_auto_values"
@@ -100,7 +106,7 @@
             <SwitchPreferenceCompat android:key="ring_enabled" android:title="Hiện khối pin / Wi-Fi / sóng" android:summary="Vòng pin ở trên, chấm sóng cong ở dưới, Wi-Fi hoặc 4G/5G ở giữa" android:defaultValue="false" />
             <SwitchPreferenceCompat android:key="ring_percent" android:title="Hiện số % pin" android:defaultValue="true" />
             <SwitchPreferenceCompat android:key="ring_bolt" android:title="Hiện tia sét khi sạc" android:summary="Thay cho số % lúc đang sạc" android:defaultValue="true" />
-            <SeekBarPreference android:key="ring_pct_height" android:title="Độ cao của số % (%)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="ring_pct_height" android:title="Độ cao của số % (%)"
                 app:min="0" android:max="100" app:showSeekBarValue="true" android:defaultValue="80" />
             <SwitchPreferenceCompat android:key="ring_show_wifi" android:title="Hiện Wi-Fi ở giữa vòng" android:summary="Chỉ hiện khi đang kết nối Wi-Fi" android:defaultValue="true" />
             <SwitchPreferenceCompat android:key="ring_show_nettype" android:title="Hiện loại mạng (5G/4G/3G) khi không có Wi-Fi" android:defaultValue="true" />
@@ -108,13 +114,13 @@
             <ListPreference android:key="ring_pos" android:title="Vị trí"
                 android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
                 android:defaultValue="5" app:useSimpleSummaryProvider="true" />
-            <SeekBarPreference android:key="ring_size" android:title="Kích thước (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="ring_size" android:title="Kích thước (dp)"
                 app:min="14" android:max="48" app:showSeekBarValue="true" android:defaultValue="26" />
-            <SeekBarPreference android:key="ring_stroke" android:title="Độ dày vòng (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="ring_stroke" android:title="Độ dày vòng (dp)"
                 app:min="1" android:max="6" app:showSeekBarValue="true" android:defaultValue="2" />
-            <SeekBarPreference android:key="ring_dx" android:title="Dịch ngang (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="ring_dx" android:title="Dịch ngang (dp)"
                 app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
-            <SeekBarPreference android:key="ring_dy" android:title="Dịch dọc (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="ring_dy" android:title="Dịch dọc (dp)"
                 app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
             <ListPreference android:key="ring_color" android:title="Màu thường (vòng, chữ, Wi-Fi, chấm sóng)"
                 android:entries="@array/color_auto_entries" android:entryValues="@array/color_auto_values"
@@ -128,7 +134,7 @@
             <ListPreference android:key="ring_color_low" android:title="Màu khi pin yếu"
                 android:entries="@array/color_entries" android:entryValues="@array/color_values"
                 android:defaultValue="#FFE53935" app:useSimpleSummaryProvider="true" />
-            <SeekBarPreference android:key="ring_low_level" android:title="Ngưỡng pin yếu (%)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="ring_low_level" android:title="Ngưỡng pin yếu (%)"
                 app:min="5" android:max="50" app:showSeekBarValue="true" android:defaultValue="20" />
             <SwitchPreferenceCompat android:key="ring_hide_stock" android:title="Ẩn biểu tượng pin của hệ thống" android:summary="Chỉ có tác dụng khi bật khối vòng" android:defaultValue="true" />
             <SwitchPreferenceCompat android:key="ring_hide_wifi" android:title="Ẩn biểu tượng Wi-Fi của hệ thống" android:defaultValue="true" />
@@ -137,7 +143,7 @@
 
     <PreferenceScreen android:key="scr_batline" android:title="Đường pin viền dưới" android:summary="Đường kẻ ngang căn giữa theo % pin">
             <SwitchPreferenceCompat android:key="battery_line" android:title="Hiện đường pin" android:defaultValue="true" />
-            <SeekBarPreference android:key="battery_line_h" android:title="Độ dày (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="battery_line_h" android:title="Độ dày (dp)"
                 app:min="1" android:max="8" app:showSeekBarValue="true" android:defaultValue="2" />
             <ListPreference android:key="battery_color_normal" android:title="Màu thường"
                 android:entries="@array/color_entries" android:entryValues="@array/color_values"
@@ -147,9 +153,9 @@
                 android:defaultValue="#FF4CAF50" app:useSimpleSummaryProvider="true" />
             <SwitchPreferenceCompat android:key="battery_anim" android:title="Hiệu ứng chấm xanh khi sạc"
                 android:summary="Các chấm chạy từ hai lề vào hai đầu thanh pin" android:defaultValue="true" />
-            <SeekBarPreference android:key="battery_anim_speed" android:title="Tốc độ chạy"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="battery_anim_speed" android:title="Tốc độ chạy"
                 app:min="1" android:max="10" app:showSeekBarValue="true" android:defaultValue="4" />
-            <SeekBarPreference android:key="battery_anim_gap" android:title="Khoảng cách giữa các chấm (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="battery_anim_gap" android:title="Khoảng cách giữa các chấm (dp)"
                 app:min="8" android:max="80" app:showSeekBarValue="true" android:defaultValue="28" />
     </PreferenceScreen>
 
@@ -162,11 +168,11 @@
             <ListPreference android:key="label_pos" android:title="Vị trí"
                 android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
                 android:defaultValue="1" app:useSimpleSummaryProvider="true" />
-            <SeekBarPreference android:key="label_size" android:title="Cỡ chữ (sp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="label_size" android:title="Cỡ chữ (sp)"
                 app:min="6" android:max="20" app:showSeekBarValue="true" android:defaultValue="11" />
-            <SeekBarPreference android:key="label_dx" android:title="Dịch ngang (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="label_dx" android:title="Dịch ngang (dp)"
                 app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
-            <SeekBarPreference android:key="label_dy" android:title="Dịch dọc (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="label_dy" android:title="Dịch dọc (dp)"
                 app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
             <ListPreference android:key="label_color" android:title="Màu chữ"
                 android:entries="@array/color_auto_entries" android:entryValues="@array/color_auto_values"
@@ -178,11 +184,11 @@
             <ListPreference android:key="analog_pos" android:title="Vị trí"
                 android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
                 android:defaultValue="4" app:useSimpleSummaryProvider="true" />
-            <SeekBarPreference android:key="analog_size" android:title="Kích thước (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="analog_size" android:title="Kích thước (dp)"
                 app:min="12" android:max="64" app:showSeekBarValue="true" android:defaultValue="28" />
-            <SeekBarPreference android:key="analog_dx" android:title="Dịch ngang (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="analog_dx" android:title="Dịch ngang (dp)"
                 app:min="-150" android:max="150" app:showSeekBarValue="true" android:defaultValue="0" />
-            <SeekBarPreference android:key="analog_dy" android:title="Dịch dọc (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="analog_dy" android:title="Dịch dọc (dp)"
                 app:min="-30" android:max="30" app:showSeekBarValue="true" android:defaultValue="0" />
             <SwitchPreferenceCompat android:key="analog_seconds" android:title="Kim giây" android:defaultValue="true" />
             <ListPreference android:key="analog_color" android:title="Màu kim mặc định (khi không có ảnh kim)"
@@ -207,23 +213,31 @@
 
     <PreferenceScreen android:key="scr_nav" android:title="Thanh điều hướng" android:summary="Chiều cao, biểu tượng Back / Home / Recents, nhấn giữ Back">
             <SwitchPreferenceCompat android:key="nav_enabled" android:title="Tuỳ chỉnh thanh điều hướng" android:summary="Dùng cho điều hướng 3 nút. Đổi chiều cao nên khởi động lại máy" android:defaultValue="false" />
-            <SeekBarPreference android:key="nav_height_dp" android:title="Chiều cao thanh (dp)"
-                app:min="24" android:max="96" app:showSeekBarValue="true" android:defaultValue="48" />
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="nav_height_dp" android:title="Chiều cao thanh (dp)"
+                app:min="24" android:max="200" app:showSeekBarValue="true" android:defaultValue="48" />
             <ListPreference android:key="nav_tint" android:title="Màu biểu tượng"
                 android:entries="@array/nav_tint_entries" android:entryValues="@array/nav_tint_values"
                 android:defaultValue="orig" app:useSimpleSummaryProvider="true" />
             <Preference android:key="pick_nav_back" android:title="Chọn ảnh nút Back" />
             <Preference android:key="clear_nav_back" android:title="Xoá ảnh nút Back" />
-            <SeekBarPreference android:key="nav_back_size" android:title="Kích thước nút Back (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="nav_back_size" android:title="Kích thước nút Back (dp)"
                 app:min="12" android:max="96" app:showSeekBarValue="true" android:defaultValue="24" />
             <Preference android:key="pick_nav_home" android:title="Chọn ảnh nút Home" android:summary="Hỗ trợ file GIF động" />
             <Preference android:key="clear_nav_home" android:title="Xoá ảnh nút Home" />
-            <SeekBarPreference android:key="nav_home_size" android:title="Kích thước nút Home / GIF (dp)"
-                app:min="12" android:max="96" app:showSeekBarValue="true" android:defaultValue="24" />
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="nav_home_size" android:title="Kích thước nút Home / GIF (dp)"
+                app:min="12" android:max="150" app:showSeekBarValue="true" android:defaultValue="24" />
             <Preference android:key="pick_nav_recent" android:title="Chọn ảnh nút Recents" />
             <Preference android:key="clear_nav_recent" android:title="Xoá ảnh nút Recents" />
-            <SeekBarPreference android:key="nav_recent_size" android:title="Kích thước nút Recents (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="nav_recent_size" android:title="Kích thước nút Recents (dp)"
                 app:min="12" android:max="96" app:showSeekBarValue="true" android:defaultValue="24" />
+            <Preference android:key="pick_nav_glow" android:title="Chọn ảnh glow khi nhấn nút" android:summary="Ảnh sẽ phóng từ nhỏ đến lớn, mờ phía dưới nút, thay cho hiệu ứng nhấn mặc định (nên dùng ảnh nền trong suốt)" />
+            <Preference android:key="clear_nav_glow" android:title="Xoá ảnh glow (dùng lại hiệu ứng mặc định)" />
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="nav_glow_size" android:title="Kích thước glow lớn nhất (dp)"
+                app:min="24" android:max="300" app:showSeekBarValue="true" android:defaultValue="72" />
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="nav_glow_time" android:title="Thời gian phóng to (mili giây)"
+                app:min="100" android:max="1500" app:showSeekBarValue="true" android:defaultValue="350" />
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="nav_glow_alpha" android:title="Độ đậm của glow (%)"
+                app:min="10" android:max="100" app:showSeekBarValue="true" android:defaultValue="70" />
             <SwitchPreferenceCompat android:key="nav_back_long_kill" android:title="Nhấn giữ Back: đóng ứng dụng chạy nền" android:summary="Đóng toàn bộ ứng dụng đang chạy ẩn (không đóng ứng dụng đang dùng)" android:defaultValue="false" />
             <SwitchPreferenceCompat android:key="kill_skip_system" android:title="Không đóng ứng dụng hệ thống" android:defaultValue="true" />
     </PreferenceScreen>
@@ -232,13 +246,13 @@
             <SwitchPreferenceCompat android:key="edge_haptic" android:title="Rung nhẹ khi kích hoạt" android:summary="Dùng chung cho cả hai cạnh. Dải này chặn cảm ứng của ứng dụng bên dưới trong vùng của nó" android:defaultValue="true" />
         <PreferenceScreen android:key="scr_edge_l" android:title="Cạnh trái" android:summary="Vị trí, kích thước và chức năng từng hướng vuốt">
             <SwitchPreferenceCompat android:key="edge_l_enabled" android:title="Bật phím cử chỉ cạnh trái" android:summary="Khi đang chỉnh ở đây, vùng vuốt hiện mờ xám nhạt trên màn hình" android:defaultValue="false" />
-            <SeekBarPreference android:key="edge_l_y" android:title="Vị trí dọc (% chiều cao màn hình)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="edge_l_y" android:title="Vị trí dọc (% chiều cao màn hình)"
                 app:min="0" android:max="100" app:showSeekBarValue="true" android:defaultValue="50" />
-            <SeekBarPreference android:key="edge_l_h" android:title="Chiều cao dải (%)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="edge_l_h" android:title="Chiều cao dải (%)"
                 app:min="10" android:max="100" app:showSeekBarValue="true" android:defaultValue="30" />
-            <SeekBarPreference android:key="edge_l_w" android:title="Độ rộng dải (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="edge_l_w" android:title="Độ rộng dải (dp)"
                 app:min="6" android:max="60" app:showSeekBarValue="true" android:defaultValue="16" />
-            <SeekBarPreference android:key="edge_l_alpha" android:title="Độ hiện của dải chỉ báo (%)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="edge_l_alpha" android:title="Độ hiện của dải chỉ báo (%)"
                 app:min="0" android:max="60" app:showSeekBarValue="true" android:defaultValue="15" />
             <ListPreference android:key="edge_l_tap" android:title="Chạm"
                 android:entries="@array/action_entries" android:entryValues="@array/action_values"
@@ -258,13 +272,13 @@
         </PreferenceScreen>
         <PreferenceScreen android:key="scr_edge_r" android:title="Cạnh phải" android:summary="Vị trí, kích thước và chức năng từng hướng vuốt">
             <SwitchPreferenceCompat android:key="edge_r_enabled" android:title="Bật phím cử chỉ cạnh phải" android:summary="Khi đang chỉnh ở đây, vùng vuốt hiện mờ xám nhạt trên màn hình" android:defaultValue="false" />
-            <SeekBarPreference android:key="edge_r_y" android:title="Vị trí dọc (% chiều cao màn hình)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="edge_r_y" android:title="Vị trí dọc (% chiều cao màn hình)"
                 app:min="0" android:max="100" app:showSeekBarValue="true" android:defaultValue="50" />
-            <SeekBarPreference android:key="edge_r_h" android:title="Chiều cao dải (%)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="edge_r_h" android:title="Chiều cao dải (%)"
                 app:min="10" android:max="100" app:showSeekBarValue="true" android:defaultValue="30" />
-            <SeekBarPreference android:key="edge_r_w" android:title="Độ rộng dải (dp)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="edge_r_w" android:title="Độ rộng dải (dp)"
                 app:min="6" android:max="60" app:showSeekBarValue="true" android:defaultValue="16" />
-            <SeekBarPreference android:key="edge_r_alpha" android:title="Độ hiện của dải chỉ báo (%)"
+            <com.dualsb.oneui.NumberSeekBarPreference android:key="edge_r_alpha" android:title="Độ hiện của dải chỉ báo (%)"
                 app:min="0" android:max="60" app:showSeekBarValue="true" android:defaultValue="15" />
             <ListPreference android:key="edge_r_tap" android:title="Chạm"
                 android:entries="@array/action_entries" android:entryValues="@array/action_values"
