@@ -62,7 +62,7 @@
                 android:entries="@array/date_fmt_entries" android:entryValues="@array/date_fmt_values"
                 android:defaultValue="EEE, d MMM" app:useSimpleSummaryProvider="true" />
             <EditTextPreference android:key="solar_custom" android:title="Kiểu dương lịch tự gõ (tuỳ chọn)"
-                android:summary="Mẫu SimpleDateFormat, ví dụ: EEEE, dd/MM/yyyy. Để trống để dùng kiểu ở trên"
+                android:summary="Mẫu SimpleDateFormat, thêm mã {thu} = Thứ 2, {am} = âm lịch 1/10, {canchi} = Bính Ngọ. Ví dụ: {thu}, dd/MM ({am}). Để trống để dùng kiểu ở trên"
                 android:defaultValue="" />
             <ListPreference android:key="time_pos" android:title="Vị trí (cả giờ và ngày)"
                 android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
@@ -238,8 +238,8 @@
                 app:min="100" android:max="1500" app:showSeekBarValue="true" android:defaultValue="350" />
             <com.dualsb.oneui.NumberSeekBarPreference android:key="nav_glow_alpha" android:title="Độ đậm của glow (%)"
                 app:min="10" android:max="100" app:showSeekBarValue="true" android:defaultValue="70" />
-            <SwitchPreferenceCompat android:key="nav_back_long_kill" android:title="Nhấn giữ Back: đóng ứng dụng chạy nền" android:summary="Đóng toàn bộ ứng dụng đang chạy ẩn (không đóng ứng dụng đang dùng)" android:defaultValue="false" />
-            <SwitchPreferenceCompat android:key="kill_skip_system" android:title="Không đóng ứng dụng hệ thống" android:defaultValue="true" />
+            <SwitchPreferenceCompat android:key="nav_back_long_kill" android:title="Nhấn giữ Back: dọn RAM (tối ưu hệ thống)" android:summary="Đóng các ứng dụng đang chạy ẩn để giải phóng RAM, rồi báo lượng RAM thu được. Không đóng ứng dụng đang dùng" android:defaultValue="false" />
+            <SwitchPreferenceCompat android:key="kill_skip_system" android:title="Khi dọn RAM: không đóng ứng dụng hệ thống" android:defaultValue="true" />
     </PreferenceScreen>
 
     <PreferenceScreen android:key="scr_edge" android:title="Phím cử chỉ cạnh màn hình" android:summary="Dải cảm ứng ở cạnh trái và / hoặc cạnh phải, mỗi hướng vuốt một chức năng">
@@ -296,6 +296,14 @@
                 android:entries="@array/action_entries" android:entryValues="@array/action_values"
                 android:defaultValue="1" app:useSimpleSummaryProvider="true" />
         </PreferenceScreen>
+    </PreferenceScreen>
+
+    <PreferenceScreen android:key="scr_lock" android:title="Màn hình khóa" android:summary="Tự do dịch vị trí các mục hiển thị trên màn hình khóa">
+            <SwitchPreferenceCompat android:key="ls_enabled" android:title="Bật tuỳ chỉnh màn hình khóa" android:defaultValue="false" />
+            <MultiSelectListPreference android:key="ls_selected" android:title="Chọn mục cần chỉnh vị trí"
+                android:summary="Danh sách gồm các mục đã từng hiện trên màn hình khóa. Hãy khoá màn hình một lần rồi quay lại đây để danh sách tự cập nhật" />
+            <PreferenceCategory android:key="ls_dynamic" android:title="Vị trí từng mục (dp)" />
+            <Preference android:key="ls_reset" android:title="Đặt lại toàn bộ vị trí màn hình khóa" android:summary="Xoá hết các độ dịch và bỏ chọn tất cả mục" />
     </PreferenceScreen>
 
     <PreferenceScreen android:key="scr_backup" android:title="Sao lưu &amp; khôi phục" android:summary="Xuất / nhập toàn bộ cài đặt và ảnh">
