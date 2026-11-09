@@ -55,6 +55,10 @@
     </string-array>
     <string-array name="date_mode_values"><item>0</item><item>1</item><item>2</item></string-array>
     <string-array name="date_fmt_entries">
+        <item>Thứ 2, 09/11 (1/10) – kèm âm lịch trong ngoặc</item>
+        <item>Thứ 2, 09/11/2026 (1/10) – kèm âm lịch trong ngoặc</item>
+        <item>Thứ 2, 09/11</item>
+        <item>09/11 (1/10) – kèm âm lịch trong ngoặc</item>
         <item>Thứ, ngày tháng (theo ngôn ngữ máy)</item>
         <item>03/11/2026</item>
         <item>3/11/2026</item>
@@ -65,6 +69,7 @@
         <item>Thứ đầy đủ, 3 tháng 11 2026</item>
     </string-array>
     <string-array name="date_fmt_values">
+        <item>{thu}, dd/MM ({am})</item><item>{thu}, dd/MM/yyyy ({am})</item><item>{thu}, dd/MM</item><item>dd/MM ({am})</item>
         <item>EEE, d MMM</item><item>dd/MM/yyyy</item><item>d/M/yyyy</item><item>dd/MM</item>
         <item>dd-MM-yyyy</item><item>yyyy-MM-dd</item><item>EEE, dd/MM/yyyy</item><item>EEEE, d MMMM yyyy</item>
     </string-array>
@@ -114,7 +119,7 @@
     <string-array name="action_entries">
         <item>Không làm gì</item><item>Quay lại (Back)</item><item>Về màn hình chính (Home)</item>
         <item>Ứng dụng gần đây (Recents)</item><item>Mở thanh thông báo</item><item>Mở cài đặt nhanh</item>
-        <item>Khoá màn hình</item><item>Chụp màn hình</item><item>Đóng ứng dụng chạy nền</item>
+        <item>Khoá màn hình</item><item>Chụp màn hình</item><item>Dọn RAM (tối ưu hệ thống)</item>
         <item>Tăng âm lượng</item><item>Giảm âm lượng</item><item>Tắt / bật tiếng</item><item>Bật / tắt đèn pin</item>
     </string-array>
     <string-array name="action_values">
