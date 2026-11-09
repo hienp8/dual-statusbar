@@ -48,6 +48,8 @@ import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.HashMap;
 import java.util.List;
@@ -238,6 +240,7 @@ final class BarController {
     // ------------------------------------------------------------------ áp cấu hình
 
     void apply(Bundle b) {
+        spots.clear();
         cfg = b;
         boolean enabled = Config.getBool(b, Config.ENABLED);
         boolean dual = enabled && Config.getBool(b, Config.DUAL);
@@ -430,12 +433,20 @@ final class BarController {
 
     /** Đặt view vào ô pos (0..8) của overlay; w/h = -2 là wrap_content. */
     private void put(View v, int pos, int w, int h, float dx, float dy) {
-        pos = Math.max(0, Math.min(8, pos));
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(w, h);
-        lp.gravity = HG[pos % 3] | VG[pos / 3];
+        lp.gravity = Gravity.TOP | Gravity.START;               // vị trí thật do bộ bố trí (relayout) quyết định
         v.setLayoutParams(lp);
-        v.setTranslationX(dx);
-        v.setTranslationY(dy);
+        spots.add(new Spot(v, Math.max(0, Math.min(8, pos)), dx, dy, orderOf(v)));
+    }
+
+    /** Thứ tự các mục khi nhiều mục cùng một ô (trái -> phải). */
+    private int orderOf(View v) {
+        if (v == timeBox) return 40;
+        if (v == lunarText) return 45;
+        if (v == label) return 50;
+        if (v == analog) return 60;
+        if (v == ring) return 70;
+        return 55;
     }
 
     private Bitmap img(String name, Bundle b) {
@@ -694,7 +705,7 @@ final class BarController {
             String out;
             try {
                 Locale loc = ctx.getResources().getConfiguration().getLocales().get(0);
-                out = new SimpleDateFormat(pat, loc).format(cal.getTime());
+                out = formatDate(pat, cal, loc);
             } catch (Exception e) {
                 out = pat;
             }
@@ -704,6 +715,53 @@ final class BarController {
             int[] l = LunarCalendar.solarToLunar(cal.get(Calendar.DAY_OF_MONTH),
                     cal.get(Calendar.MONTH) + 1, cal.get(Calendar.YEAR));
             lunarText.setText(LunarCalendar.format(l, lunarFmt));
+        }
+    }
+
+    /**
+     * Mẫu ngày: SimpleDateFormat thông thường, thêm các mã riêng:
+     * {thu} = Thứ 2 ... Thứ 7 / CN,  {am} = ngày/tháng âm lịch (vd 1/10),  {canchi} = năm Can Chi (vd Bính Ngọ).
+     * Ví dụ "{thu}, dd/MM ({am})" -> "Thứ 2, 09/11 (1/10)".
+     */
+    private String formatDate(String pat, Calendar cal, Locale loc) {
+        if (pat.indexOf('{') < 0) return new SimpleDateFormat(pat, loc).format(cal.getTime());
+        StringBuilder out = new StringBuilder();
+        int i = 0;
+        while (i < pat.length()) {
+            int a = pat.indexOf('{', i);
+            if (a < 0) { out.append(fmtSeg(pat.substring(i), cal, loc)); break; }
+            if (a > i) out.append(fmtSeg(pat.substring(i, a), cal, loc));
+            int b = pat.indexOf('}', a);
+            if (b < 0) { out.append(fmtSeg(pat.substring(a), cal, loc)); break; }
+            out.append(dateToken(pat.substring(a + 1, b), cal));
+            i = b + 1;
+        }
+        return out.toString();
+    }
+
+    private static String fmtSeg(String p, Calendar cal, Locale loc) {
+        if (p.isEmpty()) return "";
+        try { return new SimpleDateFormat(p, loc).format(cal.getTime()); }
+        catch (Exception e) { return p; }
+    }
+
+    private static String dateToken(String t, Calendar cal) {
+        switch (t) {
+            case "thu": {
+                int dow = cal.get(Calendar.DAY_OF_WEEK);               // CN = 1, Thứ 2 = 2 ... Thứ 7 = 7
+                return dow == Calendar.SUNDAY ? "CN" : "Thứ " + dow;
+            }
+            case "am": {
+                int[] l = LunarCalendar.solarToLunar(cal.get(Calendar.DAY_OF_MONTH),
+                        cal.get(Calendar.MONTH) + 1, cal.get(Calendar.YEAR));
+                return l[0] + "/" + l[1] + (l[3] == 1 ? "n" : "");
+            }
+            case "canchi": {
+                int[] l = LunarCalendar.solarToLunar(cal.get(Calendar.DAY_OF_MONTH),
+                        cal.get(Calendar.MONTH) + 1, cal.get(Calendar.YEAR));
+                return LunarCalendar.canChiYear(l[2]);
+            }
+            default: return "";
         }
     }
 
@@ -762,11 +820,44 @@ final class BarController {
 
     private static final class Item {
         final View v;
-        final int minX, w;
-        Item(View v, int minX, int w) { this.v = v; this.minX = minX; this.w = w; }
+        final int minX, w, order, cell;
+        final float dx, dy;
+        Item(View v, int minX, int w, int order, int cell, float dx, float dy) {
+            this.v = v; this.minX = minX; this.w = w; this.order = order; this.cell = cell; this.dx = dx; this.dy = dy;
+        }
+        Item(View v, int minX, int w) { this(v, minX, w, 20, -1, 0f, 0f); }
     }
 
+    private static final class Spot {
+        final View v;
+        final int cell, order;
+        final float dx, dy;
+        Spot(View v, int cell, float dx, float dy, int order) {
+            this.v = v; this.cell = cell; this.dx = dx; this.dy = dy; this.order = order;
+        }
+    }
+
+    private final List<Spot> spots = new ArrayList<>();
+
     private static void reset(View v) { v.setTranslationX(0); v.setTranslationY(0); }
+
+    /**
+     * One UI 7: khung đồng hồ chỉ chứa chữ đồng hồ -> dịch cả khung.
+     * One UI 8: khung đồng hồ còn chứa thêm chip hoạt động (Now Bar) -> chỉ dịch riêng chữ đồng hồ,
+     * để chip được xếp cùng nhóm với biểu tượng thông báo.
+     */
+    private View clockItemView() {
+        View box = clockBox != null ? clockBox : clock;
+        if (clockBox instanceof ViewGroup && clock != null && clock.getParent() == clockBox) {
+            ViewGroup g = (ViewGroup) clockBox;
+            for (int i = 0; i < g.getChildCount(); i++) {
+                View c = g.getChildAt(i);
+                if (c != clock && !(c instanceof ViewStub) && c.getVisibility() == View.VISIBLE && c.getWidth() > 0)
+                    return clock;
+            }
+        }
+        return box;
+    }
 
     private void relayout() {
         if (contents == null) return;
@@ -778,29 +869,43 @@ final class BarController {
             SysUiHook.setRows(pt + uh * 0.25f, pt + uh * 0.75f);   // cho thanh trạng thái màn hình khóa dùng chung
         }
 
-        List<Item> clockItems = new ArrayList<>(), sysItems = new ArrayList<>();
-        List<Item> notifItems = new ArrayList<>(), chipItems = new ArrayList<>();
-        View cv = clockBox != null ? clockBox : clock;
-        if (cv != null) clockItems.add(new Item(cv, 0, cv.getWidth()));
-        if (sysGroup != null) sysItems.add(new Item(sysGroup, 0, sysGroup.getWidth()));
+        List<Item> chipItems = new ArrayList<>();
+        collectChips(chipItems);
+        int nc = cells[1];
+        int cc = cells[3] == -2 ? nc : cells[3];
+
+        // Gom MỌI mục (gốc + do module thêm) rồi xếp theo từng ô: các mục cùng ô được xếp liền nhau, không đè lên nhau
+        List<Item> items = new ArrayList<>();
+        View cv = clockItemView();
+        View other = cv == clock ? clockBox : clock;            // đổi giữa hai kiểu thì trả view còn lại về chỗ cũ
+        if (other != null && other != cv) reset(other);
+        if (cv != null) {
+            if (hideClockOn) reset(cv);                          // đồng hồ gốc đã ẩn: không chiếm chỗ
+            else items.add(new Item(cv, 0, cv.getWidth(), 10, cells[0], dxClock, 0f));
+        }
+        for (Item c : chipItems) items.add(new Item(c.v, 0, c.w, 20, cc, dxNotif, 0f));
         if (notif != null) {
             int[] mm = {Integer.MAX_VALUE, Integer.MIN_VALUE};
             extent(notif, notif, mm);
-            if (mm[1] > mm[0]) notifItems.add(new Item(notif, mm[0], mm[1] - mm[0])); else reset(notif);
+            if (mm[1] > mm[0]) items.add(new Item(notif, mm[0], mm[1] - mm[0], 30, nc, dxNotif, 0f));
+            else reset(notif);
         }
-        collectChips(chipItems);
+        for (Spot sp : spots) items.add(new Item(sp.v, 0, sp.v.getWidth(), sp.order, sp.cell, sp.dx, sp.dy));
+        if (sysGroup != null) items.add(new Item(sysGroup, 0, sysGroup.getWidth(), 80, cells[2], dxIcons, 0f));
 
-        placeRow(clockItems, cells[0], dxClock);
-        placeRow(sysItems, cells[2], dxIcons);
-        int nc = cells[1];
-        int cc = cells[3] == -2 ? nc : cells[3];
-        if (nc >= 0 && cc == nc) {                       // Now Bar đi cùng nhóm thông báo: [Now Bar][icon thông báo]
-            List<Item> row = new ArrayList<>(chipItems);
-            row.addAll(notifItems);
-            placeRow(row, nc, dxNotif);
-        } else {
-            placeRow(notifItems, nc, dxNotif);
-            placeRow(chipItems, cc, dxNotif);
+        List<List<Item>> byCell = new ArrayList<>();
+        for (int i = 0; i < 9; i++) byCell.add(new ArrayList<Item>());
+        for (Item it : items) {
+            if (it.cell >= 0 && it.cell <= 8) byCell.get(it.cell).add(it);
+            else { it.v.setTranslationX(it.dx); it.v.setTranslationY(it.dy); }   // giữ hàng gốc, vẫn dịch riêng
+        }
+        for (int cell = 0; cell < 9; cell++) {
+            List<Item> row = byCell.get(cell);
+            if (row.isEmpty()) continue;
+            Collections.sort(row, new Comparator<Item>() {
+                @Override public int compare(Item x, Item y) { return x.order - y.order; }
+            });
+            placeRow(row, cell);
         }
         syncProxies(chipItems, chipFwd && cc >= 0);
     }
@@ -858,12 +963,7 @@ final class BarController {
     }
 
     /** Xếp các view liên tiếp nhau vào ô cell (0..8); cell < 0 thì trả về vị trí gốc. */
-    private void placeRow(List<Item> items, int cell, float dx) {
-        if (items.isEmpty()) return;
-        if (cell < 0 || cell > 8) {                               // giữ nguyên hàng gốc, vẫn áp dụng dịch ngang riêng
-            for (Item it : items) { it.v.setTranslationX(dx); it.v.setTranslationY(0); }
-            return;
-        }
+    private void placeRow(List<Item> items, int cell) {
         int col = cell % 3, row = cell / 3;
         int W = contents.getWidth(), H = contents.getHeight();
         int pl = contents.getPaddingLeft(), pr = contents.getPaddingRight();
@@ -877,9 +977,9 @@ final class BarController {
         float cy = pt + usableH * (row == 0 ? 0.25f : row == 1 ? 0.5f : 0.75f);
 
         for (Item it : items) {
-            int[] off = offsetIn(contents, it.v, false);
-            it.v.setTranslationX(x - (off[0] + it.minX) + dx);
-            it.v.setTranslationY(cy - (off[1] + it.v.getHeight() / 2f));
+            int[] off = offsetVisualExceptSelf(contents, it.v);
+            it.v.setTranslationX(x - (off[0] + it.minX) + it.dx);
+            it.v.setTranslationY(cy - (off[1] + it.v.getHeight() / 2f) + it.dy);
             x += it.w + gap;
         }
     }
@@ -908,6 +1008,17 @@ final class BarController {
             c = c.getParent() instanceof View ? (View) c.getParent() : null;
         }
         if (c != left) path.clear();
+        if (clockBox instanceof ViewGroup) {                       // One UI 8: chip nằm ngay trong khung đồng hồ
+            ViewGroup cb = (ViewGroup) clockBox;
+            for (int i = 0; i < cb.getChildCount(); i++) {
+                View ch = cb.getChildAt(i);
+                if (ch == clock || ch instanceof ViewStub) continue;
+                if (ch.getVisibility() != View.VISIBLE || ch.getWidth() <= 0 || ch.getAlpha() == 0f) continue;
+                String n = (idName(ch) + " " + ch.getClass().getSimpleName()).toLowerCase();
+                if (n.contains("heads_up") || n.contains("headsup")) continue;
+                out.add(new Item(ch, 0, ch.getWidth()));
+            }
+        }
         scan(left, path, out);
 
         StringBuilder sig = new StringBuilder();
@@ -943,6 +1054,20 @@ final class BarController {
             ViewGroup g = (ViewGroup) v;
             for (int i = 0; i < g.getChildCount(); i++) dump(g.getChildAt(i), depth + 1, sb);
         }
+    }
+
+    /** Vị trí của v trong anc: có tính phần dịch của các view cha, không tính phần dịch của chính v. */
+    private static int[] offsetVisualExceptSelf(View anc, View v) {
+        float x = 0, y = 0;
+        View c = v;
+        while (c != anc && c.getParent() instanceof View) {
+            x += c.getLeft();
+            y += c.getTop();
+            View p = (View) c.getParent();
+            if (p != anc) { x += p.getTranslationX(); y += p.getTranslationY(); }
+            c = p;
+        }
+        return new int[]{Math.round(x), Math.round(y)};
     }
 
     private static int[] offsetIn(View anc, View v, boolean withTranslation) {

@@ -14,6 +14,7 @@ import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.preference.MultiSelectListPreference;
 import androidx.preference.Preference;
+import androidx.preference.PreferenceCategory;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 import androidx.preference.PreferenceScreen;
@@ -28,11 +29,13 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -118,6 +121,22 @@ public class SettingsActivity extends AppCompatActivity
             MultiSelectListPreference ms = findPreference("hidden_slots");
             if (ms != null) refreshSlots(ms);
 
+            MultiSelectListPreference ls = findPreference("ls_selected");
+            if (ls != null) { refreshLock(ls); buildLockItems(); }
+            Preference lsReset = findPreference("ls_reset");
+            if (lsReset != null) lsReset.setOnPreferenceClickListener(p -> {
+                SharedPreferences.Editor ed = prefs().edit();
+                for (String k : new ArrayList<>(prefs().getAll().keySet()))
+                    if (k.startsWith("ls_dx_") || k.startsWith("ls_dy_")) ed.remove(k);
+                ed.putStringSet("ls_selected", new HashSet<String>());
+                ed.apply();
+                MultiSelectListPreference m = findPreference("ls_selected");
+                if (m != null) m.setValues(new HashSet<String>());
+                buildLockItems();
+                Toast.makeText(getContext(), "Đã đặt lại", Toast.LENGTH_SHORT).show();
+                return true;
+            });
+
             Preference ex = findPreference("backup_export");
             if (ex != null) ex.setOnPreferenceClickListener(p -> {
                 exporter.launch("dualsb_backup.zip");
@@ -128,6 +147,65 @@ public class SettingsActivity extends AppCompatActivity
                 importer.launch(new String[]{"application/zip", "application/octet-stream", "*/*"});
                 return true;
             });
+        }
+
+        private static final Map<String, String> LOCK_LABELS = new HashMap<>();
+        static {
+            LOCK_LABELS.put("lockscreen_clock_view", "Đồng hồ (nhỏ)");
+            LOCK_LABELS.put("lockscreen_clock_view_large", "Đồng hồ (lớn)");
+            LOCK_LABELS.put("keyguard_clock_container", "Khung đồng hồ");
+            LOCK_LABELS.put("keyguard_slice_view", "Ngày / thông tin dưới đồng hồ");
+            LOCK_LABELS.put("keyguard_status_area", "Khu vực trạng thái dưới đồng hồ");
+            LOCK_LABELS.put("lock_icon_view", "Ổ khóa");
+            LOCK_LABELS.put("lock_icon", "Ổ khóa");
+            LOCK_LABELS.put("keyguard_indication_area", "Dòng gợi ý (vân tay, sạc...)");
+            LOCK_LABELS.put("keyguard_indication_text", "Chữ gợi ý");
+            LOCK_LABELS.put("keyguard_bottom_area", "Khu vực phím tắt phía dưới");
+            LOCK_LABELS.put("notification_stack_scroller", "Danh sách thông báo");
+            LOCK_LABELS.put("notification_container_parent", "Khung thông báo");
+            LOCK_LABELS.put("notification_panel", "Bảng thông báo");
+            LOCK_LABELS.put("media_container", "Trình phát nhạc");
+        }
+
+        private static String lockLabel(String id) {
+            String l = LOCK_LABELS.get(id);
+            return l != null ? l + " (" + id + ")" : id;
+        }
+
+        /** Danh sách mục màn hình khóa đã được SystemUI báo về. */
+        private void refreshLock(MultiSelectListPreference ms) {
+            Map<String, String> m = new java.util.TreeMap<>();
+            Set<String> known = prefs().getStringSet("known_ls", null);
+            if (known != null) for (String k : known) m.put(k, lockLabel(k));
+            Set<String> sel = prefs().getStringSet("ls_selected", null);
+            if (sel != null) for (String k : sel) if (!m.containsKey(k)) m.put(k, lockLabel(k));
+            ms.setEntries(m.values().toArray(new CharSequence[0]));
+            ms.setEntryValues(m.keySet().toArray(new CharSequence[0]));
+        }
+
+        /** Tạo hai thanh trượt (ngang, dọc) cho từng mục đã chọn. */
+        private void buildLockItems() {
+            PreferenceCategory cat = findPreference("ls_dynamic");
+            if (cat == null) return;
+            cat.removeAll();
+            Set<String> sel = prefs().getStringSet("ls_selected", null);
+            if (sel == null || sel.isEmpty()) return;
+            for (String id : new TreeSet<>(sel)) {
+                cat.addPreference(lockSlider("ls_dx_" + id, lockLabel(id) + " — ngang (dp)"));
+                cat.addPreference(lockSlider("ls_dy_" + id, lockLabel(id) + " — dọc (dp)"));
+            }
+        }
+
+        private NumberSeekBarPreference lockSlider(String key, String title) {
+            NumberSeekBarPreference p = new NumberSeekBarPreference(requireContext());
+            p.setKey(key);
+            p.setTitle(title);
+            p.setMin(-500);
+            p.setMax(500);
+            p.setShowSeekBarValue(true);
+            p.setDefaultValue(0);
+            p.setIconSpaceReserved(false);
+            return p;
         }
 
         /** Gộp danh sách biểu tượng mặc định với những biểu tượng SystemUI đã báo về. */
@@ -322,7 +400,8 @@ public class SettingsActivity extends AppCompatActivity
             prefs().unregisterOnSharedPreferenceChangeListener(this);
         }
         @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
-            if ("known_slots".equals(key)) return;
+            if ("known_slots".equals(key) || "known_ls".equals(key)) return;
+            if ("ls_selected".equals(key)) buildLockItems();
             if (key != null && key.startsWith("edge_") && !Config.EDGE_PREVIEW.equals(key)
                     && !Config.EDGE_PREVIEW_TS.equals(key) && isEdgeScreen()) {
                 sp.edit().putLong(Config.EDGE_PREVIEW_TS, System.currentTimeMillis()).apply();   // giữ vùng xem trước

@@ -26,15 +26,16 @@ public class ConfigProvider extends ContentProvider {
     @Override
     public Bundle call(String method, String arg, Bundle extras) {
         SharedPreferences sp = Storage.prefs(getContext());
-        if ("report_slots".equals(method)) {
+        if ("report_slots".equals(method) || "report_ls".equals(method)) {
+            String setKey = "report_ls".equals(method) ? "known_ls" : "known_slots";
             if (arg != null && !arg.isEmpty()) {
-                Set<String> cur = new HashSet<>(sp.getStringSet("known_slots", new HashSet<String>()));
+                Set<String> cur = new HashSet<>(sp.getStringSet(setKey, new HashSet<String>()));
                 boolean changed = false;
                 for (String s : arg.split(",")) {
                     s = s.trim();
                     if (!s.isEmpty() && cur.add(s)) changed = true;
                 }
-                if (changed) sp.edit().putStringSet("known_slots", cur).apply();
+                if (changed) sp.edit().putStringSet(setKey, cur).apply();
             }
             return new Bundle();
         }

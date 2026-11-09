@@ -122,10 +122,15 @@ final class Actions {
     }
 
     // ------------------------------------------------------------------ đóng ứng dụng chạy nền
-    /** Đóng các tiến trình chạy ẩn (dịch vụ / bộ nhớ đệm). Không đụng tới ứng dụng đang dùng, launcher, bàn phím, SystemUI. */
+    /**
+     * Dọn RAM / tối ưu hệ thống: đóng các tiến trình chạy ẩn (dịch vụ / bộ nhớ đệm) rồi báo lượng RAM thu được.
+     * Không đụng tới ứng dụng đang dùng, launcher, bàn phím, SystemUI.
+     */
     static void killBackground(final Context ctx, boolean skipSystem) {
         ActivityManager am = (ActivityManager) ctx.getSystemService(Context.ACTIVITY_SERVICE);
         PackageManager pm = ctx.getPackageManager();
+        ActivityManager.MemoryInfo before = new ActivityManager.MemoryInfo();
+        am.getMemoryInfo(before);
 
         Set<String> keep = new HashSet<>();
         keep.add(ctx.getPackageName());
@@ -174,10 +179,16 @@ final class Actions {
             }
         }
         final int count = n;
-        XposedBridge.log(SysUiHook.TAG + "đóng ứng dụng nền: " + count + "/" + kill.size());
+        try { Thread.sleep(900); } catch (InterruptedException ignored) {}      // chờ hệ thống thu hồi bộ nhớ
+        ActivityManager.MemoryInfo after = new ActivityManager.MemoryInfo();
+        am.getMemoryInfo(after);
+        final long freedMb = Math.max(0, (after.availMem - before.availMem) / (1024 * 1024));
+        final long freeMb = after.availMem / (1024 * 1024), totalMb = after.totalMem / (1024 * 1024);
+        XposedBridge.log(SysUiHook.TAG + "dọn RAM: đóng " + count + "/" + kill.size() + " ứng dụng, giải phóng ~" + freedMb + " MB");
         SysUiHook.UI.post(new Runnable() {
             @Override public void run() {
-                Toast.makeText(ctx, "Đã đóng " + count + " ứng dụng nền", Toast.LENGTH_SHORT).show();
+                Toast.makeText(ctx, "Đã dọn RAM: đóng " + count + " ứng dụng, giải phóng ~" + freedMb
+                        + " MB (trống " + freeMb + "/" + totalMb + " MB)", Toast.LENGTH_LONG).show();
             }
         });
     }

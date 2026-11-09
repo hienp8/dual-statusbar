@@ -68,6 +68,24 @@ public final class SysUiHook {
             XposedBridge.log(TAG + "hooked KeyguardStatusBarView");
         }
 
+        Class<?> ns = null;
+        for (String n : new String[]{"com.android.systemui.shade.NotificationShadeWindowView",
+                "com.android.systemui.statusbar.phone.NotificationShadeWindowView"}) {
+            ns = XposedHelpers.findClassIfExists(n, cl);
+            if (ns != null) break;
+        }
+        if (ns == null) {
+            XposedBridge.log(TAG + "NotificationShadeWindowView not found (tuỳ chỉnh màn hình khóa)");
+        } else {
+            XposedBridge.hookAllConstructors(ns, new XC_MethodHook() {
+                @Override protected void afterHookedMethod(MethodHookParam p) {
+                    final ViewGroup v = (ViewGroup) p.thisObject;
+                    v.post(new Runnable() { @Override public void run() { attachLock(v); } });
+                }
+            });
+            XposedBridge.log(TAG + "hooked " + ns.getName());
+        }
+
         Class<?> c = XposedHelpers.findClassIfExists(
                 "com.android.systemui.statusbar.phone.PhoneStatusBarView", cl);
         if (c == null) { XposedBridge.log(TAG + "PhoneStatusBarView not found"); return; }
@@ -123,6 +141,32 @@ public final class SysUiHook {
         }
     }
 
+    private static final Set<LockScreenController> LS =
+            Collections.newSetFromMap(new WeakHashMap<LockScreenController, Boolean>());
+
+    private static void attachLock(ViewGroup v) {
+        try {
+            for (LockScreenController l : new ArrayList<>(LS)) if (l.root == v) return;
+            LockScreenController l = new LockScreenController(v);
+            LS.add(l);
+            ensureObserver(v.getContext());
+            Bundle c = lastCfg;
+            if (c != null) l.apply(c);
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + "attachLock: " + Log.getStackTraceString(t));
+        }
+    }
+
+    /** Báo tên các mục đang hiển thị trên màn hình khóa về app để hiện trong menu chọn. */
+    static void reportLockItems(final Context ctx, final String csv) {
+        IO.execute(new Runnable() {
+            @Override public void run() {
+                try { ctx.getContentResolver().call(Uri.parse(Config.CONFIG_URI), "report_ls", csv, null); }
+                catch (Throwable t) { XposedBridge.log(TAG + "báo mục màn hình khóa lỗi: " + t); }
+            }
+        });
+    }
+
     private static void ensureObserver(final Context ctx) {
         if (observing) return;
         observing = true;
@@ -163,6 +207,10 @@ public final class SysUiHook {
                         for (KeyguardBarController k : new ArrayList<>(KG)) {
                             try { k.apply(cfg); }
                             catch (Throwable t) { XposedBridge.log(TAG + "apply kg: " + Log.getStackTraceString(t)); }
+                        }
+                        for (LockScreenController l : new ArrayList<>(LS)) {
+                            try { l.apply(cfg); }
+                            catch (Throwable t) { XposedBridge.log(TAG + "apply ls: " + Log.getStackTraceString(t)); }
                         }
                         try { NavStyle.setConfig(cfg); }
                         catch (Throwable t) { XposedBridge.log(TAG + "apply nav: " + Log.getStackTraceString(t)); }

@@ -104,6 +104,10 @@ public final class Config {
     public static final String HIDE_NOTIF = "hide_notif_icons";
     public static final String HIDDEN_SLOTS = "hidden_slots";
 
+    // màn hình khóa (vị trí tự do các mục; khoá động "ls_dx_<id>", "ls_dy_<id>")
+    public static final String LS_ENABLED = "ls_enabled";
+    public static final String LS_SELECTED = "ls_selected";
+
     // thanh điều hướng
     public static final String NAV_ENABLED = "nav_enabled";
     public static final String NAV_HEIGHT = "nav_height_dp";
@@ -192,6 +196,7 @@ public final class Config {
             case TIME_ENABLED:
             case LUNAR_ENABLED:
             case HIDE_NOTIF:
+            case LS_ENABLED:
             case NAV_ENABLED:
             case NAV_BACK_KILL:
                 return false;
@@ -208,6 +213,7 @@ public final class Config {
             case BAT_COL_CHG: return "#FF4CAF50";
             case LABEL_TEXT: return "";
             case HIDDEN_SLOTS: return "";
+            case LS_SELECTED: return "";
             case SOLAR_CUSTOM: return "";
             case TIME_FMT: return "HH:mm";
             case SOLAR_FMT: return "EEE, d MMM";
