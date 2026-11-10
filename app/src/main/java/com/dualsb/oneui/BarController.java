@@ -747,6 +747,10 @@ final class BarController {
 
     private static String dateToken(String t, Calendar cal) {
         switch (t) {
+            case "t": {                                                  // T.2 ... T.7 / CN
+                int dow = cal.get(Calendar.DAY_OF_WEEK);
+                return dow == Calendar.SUNDAY ? "CN" : "T." + dow;
+            }
             case "thu": {
                 int dow = cal.get(Calendar.DAY_OF_WEEK);               // CN = 1, Thứ 2 = 2 ... Thứ 7 = 7
                 return dow == Calendar.SUNDAY ? "CN" : "Thứ " + dow;
@@ -979,7 +983,7 @@ final class BarController {
         for (Item it : items) {
             int[] off = offsetVisualExceptSelf(contents, it.v);
             it.v.setTranslationX(x - (off[0] + it.minX) + it.dx);
-            it.v.setTranslationY(cy - (off[1] + it.v.getHeight() / 2f) + it.dy);
+            it.v.setTranslationY(cy - (off[1] + contentCenterY(it.v)) + it.dy);
             x += it.w + gap;
         }
     }
@@ -1068,6 +1072,28 @@ final class BarController {
             c = p;
         }
         return new int[]{Math.round(x), Math.round(y)};
+    }
+
+    /**
+     * Tâm theo chiều dọc của phần nội dung đang hiển thị trong v (tính từ mép trên của v, không tính phần dịch của
+     * chính v). Dùng thay cho "tâm của view" vì ở One UI 8 nhiều khung cao hơn / lệch so với nội dung bên trong.
+     */
+    private static float contentCenterY(View v) {
+        float[] mm = {Float.MAX_VALUE, -Float.MAX_VALUE};
+        contentY(v, v, mm, 0);
+        return mm[1] <= mm[0] ? v.getHeight() / 2f : (mm[0] + mm[1]) / 2f;
+    }
+
+    private static void contentY(View top, View v, float[] mm, int depth) {
+        if (depth > 12 || v.getVisibility() != View.VISIBLE || v.getAlpha() == 0f) return;
+        if (v instanceof ViewGroup && ((ViewGroup) v).getChildCount() > 0) {
+            ViewGroup g = (ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) contentY(top, g.getChildAt(i), mm, depth + 1);
+        } else if (v != top && v.getWidth() > 0 && v.getHeight() > 0) {
+            int[] o = offsetIn(top, v, true);
+            mm[0] = Math.min(mm[0], o[1]);
+            mm[1] = Math.max(mm[1], o[1] + v.getHeight());
+        }
     }
 
     private static int[] offsetIn(View anc, View v, boolean withTranslation) {

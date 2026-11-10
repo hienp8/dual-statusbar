@@ -7,6 +7,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 
+import de.robv.android.xposed.XposedBridge;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -29,10 +31,12 @@ final class LockScreenController {
     private final Map<View, float[]> st = new WeakHashMap<>();        // view -> {nền X, nền Y, đã ghi X, đã ghi Y}
     private final Set<String> reported = new HashSet<>();
     private long lastScan;
+    private int scans, dumps, lastDumpSeen;
     private static final Map<Integer, String> NAMES = new HashMap<>();
 
     LockScreenController(ViewGroup v) {
         root = v;
+        XposedBridge.log(SysUiHook.TAG + "màn hình khóa: gắn vào " + v.getClass().getName());
         v.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
             @Override public void onGlobalLayout() { scan(); }
         });
@@ -91,6 +95,30 @@ final class LockScreenController {
             }
         }
         if (add.length() > 0) SysUiHook.reportLockItems(root.getContext(), add.toString());
+
+        scans++;
+        if (dumps < 2 && (scans == 3 || (dumps == 1 && Math.abs(seen.size() - lastDumpSeen) >= 15))) {
+            dumps++;
+            lastDumpSeen = seen.size();
+            StringBuilder sb = new StringBuilder(SysUiHook.TAG + "cây view cửa sổ shade (" + seen.size()
+                    + " mục có tên): " + root.getClass().getName());
+            dump(root, 0, sb, new int[]{0});
+            XposedBridge.log(sb.toString());
+        }
+    }
+
+    private void dump(View v, int depth, StringBuilder sb, int[] cnt) {
+        if (depth > 7 || cnt[0] > 260) return;
+        cnt[0]++;
+        String n = nameOf(v);
+        sb.append('\n');
+        for (int i = 0; i < depth; i++) sb.append("  ");
+        sb.append(v.getClass().getSimpleName()).append('#').append(n == null ? "-" : n)
+                .append(" vis=").append(v.getVisibility()).append(' ').append(v.getWidth()).append('x').append(v.getHeight());
+        if (v instanceof ViewGroup) {
+            ViewGroup g = (ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) dump(g.getChildAt(i), depth + 1, sb, cnt);
+        }
     }
 
     private void walk(View v, int depth, Set<String> seen) {
@@ -98,7 +126,7 @@ final class LockScreenController {
         String n = nameOf(v);
         if (n != null) {
             if (want.containsKey(n)) found.put(n, v);
-            if (v.getVisibility() == View.VISIBLE && v.getWidth() > 0 && v.getHeight() > 0 && v.isShown()) seen.add(n);
+            if (v.getWidth() > 0 && v.getHeight() > 0) seen.add(n);                       // báo cả mục đang ẩn, để luôn có danh sách
         }
         if (v instanceof ViewGroup) {
             ViewGroup g = (ViewGroup) v;

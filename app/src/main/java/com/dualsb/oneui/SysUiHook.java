@@ -136,6 +136,8 @@ public final class SysUiHook {
             ensureObserver(v.getContext());
             Bundle c = lastCfg;
             if (c != null) k.apply(c);
+            View rootV = v.getRootView();                       // cửa sổ chứa màn hình khóa
+            if (rootV instanceof ViewGroup && rootV != v) attachLock((ViewGroup) rootV);
         } catch (Throwable t) {
             XposedBridge.log(TAG + "attachKeyguard: " + Log.getStackTraceString(t));
         }
