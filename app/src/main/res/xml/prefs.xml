@@ -62,7 +62,7 @@
                 android:entries="@array/date_fmt_entries" android:entryValues="@array/date_fmt_values"
                 android:defaultValue="EEE, d MMM" app:useSimpleSummaryProvider="true" />
             <EditTextPreference android:key="solar_custom" android:title="Kiểu dương lịch tự gõ (tuỳ chọn)"
-                android:summary="Mẫu SimpleDateFormat, thêm mã {thu} = Thứ 2, {am} = âm lịch 1/10, {canchi} = Bính Ngọ. Ví dụ: {thu}, dd/MM ({am}). Để trống để dùng kiểu ở trên"
+                android:summary="Mẫu SimpleDateFormat, thêm mã {t} = T.2, {thu} = Thứ 2, {am} = âm lịch 1/10, {canchi} = Bính Ngọ. Ví dụ: {thu}, dd/MM ({am}). Để trống để dùng kiểu ở trên"
                 android:defaultValue="" />
             <ListPreference android:key="time_pos" android:title="Vị trí (cả giờ và ngày)"
                 android:entries="@array/pos_entries" android:entryValues="@array/pos_values"
