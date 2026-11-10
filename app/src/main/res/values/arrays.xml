@@ -55,6 +55,8 @@
     </string-array>
     <string-array name="date_mode_values"><item>0</item><item>1</item><item>2</item></string-array>
     <string-array name="date_fmt_entries">
+        <item>T.2, 9/11 (1/10) – kèm âm lịch trong ngoặc</item>
+        <item>T.2, 09/11 (1/10)</item>
         <item>Thứ 2, 09/11 (1/10) – kèm âm lịch trong ngoặc</item>
         <item>Thứ 2, 09/11/2026 (1/10) – kèm âm lịch trong ngoặc</item>
         <item>Thứ 2, 09/11</item>
@@ -69,7 +71,7 @@
         <item>Thứ đầy đủ, 3 tháng 11 2026</item>
     </string-array>
     <string-array name="date_fmt_values">
-        <item>{thu}, dd/MM ({am})</item><item>{thu}, dd/MM/yyyy ({am})</item><item>{thu}, dd/MM</item><item>dd/MM ({am})</item>
+        <item>{t}, d/M ({am})</item><item>{t}, dd/MM ({am})</item><item>{thu}, dd/MM ({am})</item><item>{thu}, dd/MM/yyyy ({am})</item><item>{thu}, dd/MM</item><item>dd/MM ({am})</item>
         <item>EEE, d MMM</item><item>dd/MM/yyyy</item><item>d/M/yyyy</item><item>dd/MM</item>
         <item>dd-MM-yyyy</item><item>yyyy-MM-dd</item><item>EEE, dd/MM/yyyy</item><item>EEEE, d MMMM yyyy</item>
     </string-array>
