@@ -1,6 +1,7 @@
 package com.dualsb.oneui;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -121,6 +122,12 @@ public class SettingsActivity extends AppCompatActivity
             MultiSelectListPreference ms = findPreference("hidden_slots");
             if (ms != null) refreshSlots(ms);
 
+            Preference lwManage = findPreference("lw_manage");
+            if (lwManage != null) lwManage.setOnPreferenceClickListener(p -> {
+                startActivity(new Intent(requireContext(), LockWidgetsActivity.class));
+                return true;
+            });
+
             MultiSelectListPreference ls = findPreference("ls_selected");
             if (ls != null) { refreshLock(ls); buildLockItems(); }
             Preference lsReset = findPreference("ls_reset");
@@ -168,8 +175,7 @@ public class SettingsActivity extends AppCompatActivity
         }
 
         private static String lockLabel(String id) {
-            String l = LOCK_LABELS.get(id);
-            return l != null ? l + " (" + id + ")" : id;
+            return LockLabels.label(id);
         }
 
         /** Danh sách mục màn hình khóa đã được SystemUI báo về. */

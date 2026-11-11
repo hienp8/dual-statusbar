@@ -159,6 +159,16 @@ public final class SysUiHook {
         }
     }
 
+    /** Ghi một loạt cài đặt vào app module (một lần duy nhất để SystemUI không bị nháy). */
+    static void setPrefs(final Context ctx, final Bundle kv) {
+        IO.execute(new Runnable() {
+            @Override public void run() {
+                try { ctx.getContentResolver().call(Uri.parse(Config.CONFIG_URI), "set_prefs", null, kv); }
+                catch (Throwable t) { XposedBridge.log(TAG + "ghi cài đặt lỗi: " + t); }
+            }
+        });
+    }
+
     /** Báo tên các mục đang hiển thị trên màn hình khóa về app để hiện trong menu chọn. */
     static void reportLockItems(final Context ctx, final String csv) {
         IO.execute(new Runnable() {

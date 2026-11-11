@@ -259,7 +259,7 @@ final class NavStyle {
         v.setBackground(new GlowDrawable(img, sz[0], sz[1], alpha / 100f, dur));
     }
 
-    private static Drawable decode(Context ctx, String name, final int px, final int[] outSize) {
+    static Drawable decode(Context ctx, String name, final int px, final int[] outSize) {
         try {
             ImageDecoder.Source src = ImageDecoder.createSource(ctx.getContentResolver(),
                     Uri.parse(Config.IMG_URI + name));

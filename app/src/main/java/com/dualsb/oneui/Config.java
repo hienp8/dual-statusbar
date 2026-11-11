@@ -10,7 +10,7 @@ public final class Config {
     public static final String CONFIG_URI = "content://" + AUTHORITY + "/config";
     public static final String IMG_URI = "content://" + AUTHORITY + "/img/";
     /** Ảnh nav_* được lưu nguyên bản (giữ GIF động); các ảnh còn lại được nén lại thành PNG. */
-    public static final String[] IMAGES = {"bg", "dial", "hour", "minute", "second", "nav_back", "nav_home", "nav_recent", "nav_glow"};
+    public static final String[] IMAGES = {"bg", "dial", "hour", "minute", "second", "nav_back", "nav_home", "nav_recent", "nav_glow"};   // ảnh tiện ích màn hình khóa: lw_<id> (động)
     public static final String SETTING_HEIGHT_PX = "dualsb_height_px";
     public static final String SETTING_NAV_PX = "dualsb_nav_px";
 
@@ -107,6 +107,9 @@ public final class Config {
     // màn hình khóa (vị trí tự do các mục; khoá động "ls_dx_<id>", "ls_dy_<id>")
     public static final String LS_ENABLED = "ls_enabled";
     public static final String LS_SELECTED = "ls_selected";
+    public static final String LW_ENABLED = "lw_enabled";        // tiện ích thêm vào màn hình khóa
+    public static final String LW_EDIT = "lw_edit";              // chế độ kéo thả trực tiếp trên màn hình khóa
+    public static final String LW_ITEMS = "lw_items";            // JSON danh sách tiện ích
 
     // thanh điều hướng
     public static final String NAV_ENABLED = "nav_enabled";
@@ -197,6 +200,8 @@ public final class Config {
             case LUNAR_ENABLED:
             case HIDE_NOTIF:
             case LS_ENABLED:
+            case LW_ENABLED:
+            case LW_EDIT:
             case NAV_ENABLED:
             case NAV_BACK_KILL:
                 return false;
@@ -214,6 +219,7 @@ public final class Config {
             case LABEL_TEXT: return "";
             case HIDDEN_SLOTS: return "";
             case LS_SELECTED: return "";
+            case LW_ITEMS: return "[]";
             case SOLAR_CUSTOM: return "";
             case TIME_FMT: return "HH:mm";
             case SOLAR_FMT: return "EEE, d MMM";
