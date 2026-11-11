@@ -299,7 +299,14 @@
     </PreferenceScreen>
 
     <PreferenceScreen android:key="scr_lock" android:title="Màn hình khóa" android:summary="Tự do dịch vị trí các mục hiển thị trên màn hình khóa">
-            <SwitchPreferenceCompat android:key="ls_enabled" android:title="Bật tuỳ chỉnh màn hình khóa" android:defaultValue="false" />
+            <SwitchPreferenceCompat android:key="lw_enabled" android:title="Bật tiện ích trên màn hình khóa"
+                android:summary="Thêm ảnh, GIF, đồng hồ, chữ, nút ứng dụng và hiệu ứng lên màn hình khóa" android:defaultValue="false" />
+            <Preference android:key="lw_manage" android:title="Quản lý tiện ích"
+                android:summary="Thêm / sửa / xoá các mục sẽ hiện trên màn hình khóa" />
+            <SwitchPreferenceCompat android:key="lw_edit" android:title="Chế độ chỉnh trực tiếp trên màn hình khóa"
+                android:summary="Bật rồi khoá máy: các mục hiện viền và nhãn, nhấn giữ một mục rồi kéo để di chuyển, bấm Xong để lưu và thoát"
+                android:defaultValue="false" />
+            <SwitchPreferenceCompat android:key="ls_enabled" android:title="Cho phép dịch các mục có sẵn của Samsung" android:defaultValue="false" />
             <MultiSelectListPreference android:key="ls_selected" android:title="Chọn mục cần chỉnh vị trí"
                 android:summary="Danh sách gồm các mục đã từng hiện trên màn hình khóa. Hãy khoá màn hình một lần rồi quay lại đây để danh sách tự cập nhật" />
             <PreferenceCategory android:key="ls_dynamic" android:title="Vị trí từng mục (dp)" />
