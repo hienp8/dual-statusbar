@@ -213,6 +213,7 @@ public final class Config {
     public static String getString(Bundle b, String key) {
         Object o = b == null ? null : b.get(key);
         if (o instanceof String) return (String) o;
+        if (key.startsWith("ls_grp_")) return "";                  // danh sách mục đi kèm của một mục đã dịch
         switch (key) {
             case BAT_COL: return "#FFE53935";
             case BAT_COL_CHG: return "#FF4CAF50";

@@ -1,6 +1,7 @@
 package com.dualsb.oneui;
 
 import android.content.res.Resources;
+import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.util.DisplayMetrics;
@@ -9,8 +10,12 @@ import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -20,25 +25,31 @@ import de.robv.android.xposed.XposedBridge;
 
 /**
  * Điều khiển cửa sổ màn hình khóa:
- *  - gắn lớp tiện ích (LockWidgetLayer: ảnh, GIF, đồng hồ, nút ứng dụng, hiệu ứng...);
- *  - dịch vị trí các mục CÓ SẴN của Samsung (theo tên id, hoặc theo đường dẫn view nếu không có tên) và cho kéo thả
- *    trực tiếp trong chế độ chỉnh. Phần dịch được cộng thêm vào giá trị Samsung đang đặt (không ghi đè hoạt ảnh).
+ *  - gắn lớp tiện ích (LockWidgetLayer);
+ *  - dịch vị trí các mục CÓ SẴN của Samsung. Mỗi mục được chọn ("chủ") kéo theo các view nằm trọn trong khung của nó
+ *    (chữ, biểu tượng trên một nền mờ...) nên cả khối di chuyển cùng nhau;
+ *  - khi thả, tự đẩy các mục khác đang chồng lên ra xa theo chiều dọc.
+ * Phần dịch được cộng thêm vào giá trị Samsung đang đặt (không ghi đè hoạt ảnh của hệ thống).
  */
 final class LockScreenController {
 
-    static final class StockInfo {
+    /** Một mục có sẵn của Samsung có thể chọn / kéo, cùng các view đi kèm nằm trong khung của nó. */
+    static final class Target {
         final String key, label;
-        final int l, t, r, b;
-        StockInfo(String key, String label, int l, int t, int r, int b) {
-            this.key = key; this.label = label; this.l = l; this.t = t; this.r = r; this.b = b;
-        }
+        final View view;
+        final List<String> memberKeys = new ArrayList<>();
+        final List<View> memberViews = new ArrayList<>();
+        boolean prepared;
+        Target(String key, String label, View view) { this.key = key; this.label = label; this.view = view; }
     }
 
     final ViewGroup root;
     private boolean on, editing, needPaths;
-    private final Map<String, float[]> want = new HashMap<>();        // khoá -> {dx px, dy px}
+    private final Map<String, float[]> want = new HashMap<>();        // khoá -> {dx px, dy px} (chủ và thành viên dùng chung mảng)
     private final Map<String, View> found = new HashMap<>();
     private final Map<String, View> editViews = new HashMap<>();
+    private final Set<String> leaders = new LinkedHashSet<>();
+    private final Map<String, List<String>> groups = new HashMap<>();
     private final Map<View, float[]> st = new WeakHashMap<>();        // view -> {nền X, nền Y, đã ghi X, đã ghi Y}
     private final Set<String> reported = new HashSet<>();
     private long lastScan;
@@ -72,13 +83,29 @@ final class LockScreenController {
         on = lsOn || edit;
         float d = density();
         want.clear();
+        leaders.clear();
+        groups.clear();
         needPaths = edit;
         if (on) {
             for (String id : Config.getString(b, Config.LS_SELECTED).split(",")) {
                 id = id.trim();
                 if (id.isEmpty()) continue;
-                want.put(id, new float[]{Config.getInt(b, "ls_dx_" + id) * d, Config.getInt(b, "ls_dy_" + id) * d});
+                float[] off = new float[]{Config.getInt(b, "ls_dx_" + id) * d, Config.getInt(b, "ls_dy_" + id) * d};
+                want.put(id, off);
+                leaders.add(id);
                 if (id.startsWith("p:")) needPaths = true;
+                String g = Config.getString(b, "ls_grp_" + id);
+                if (!g.isEmpty()) {
+                    List<String> mem = new ArrayList<>();
+                    for (String mk : g.split(",")) {
+                        mk = mk.trim();
+                        if (mk.isEmpty()) continue;
+                        mem.add(mk);
+                        want.put(mk, off);                                  // thành viên dùng chung độ dịch với "chủ"
+                        if (mk.startsWith("p:")) needPaths = true;
+                    }
+                    groups.put(id, mem);
+                }
             }
         }
         if (wOn && layer == null) createLayer();
@@ -166,7 +193,7 @@ final class LockScreenController {
         }
     }
 
-    /** Mục có thể kéo trong chế độ chỉnh: đang hiện, đủ lớn nhưng không phải khung phủ gần hết màn hình. */
+    /** Mục có thể chọn trong chế độ chỉnh: đang hiện, đủ lớn nhưng không phải khung phủ gần hết màn hình. */
     private void consider(String key, View v, boolean unnamed) {
         if (!v.isShown() || key.equals("p:")) return;
         float d = density();
@@ -192,69 +219,221 @@ final class LockScreenController {
         }
     }
 
-    // ------------------------------------------------------------------ chỉnh bằng tay
-    List<StockInfo> stockEntries() {
-        List<StockInfo> out = new ArrayList<>();
+    // ------------------------------------------------------------------ khoá của một view
+    private String pathOf(View v) {
+        StringBuilder sb = new StringBuilder();
+        View c = v;
+        while (c != root && c.getParent() instanceof ViewGroup) {
+            ViewGroup p = (ViewGroup) c.getParent();
+            int i = p.indexOfChild(c);
+            sb.insert(0, sb.length() == 0 ? String.valueOf(i) : i + ".");
+            c = p;
+        }
+        return sb.toString();
+    }
+
+    private String keyFor(View v) {
+        String n = nameOf(v);
+        return n != null ? n : "p:" + pathOf(v);
+    }
+
+    Rect rectOf(View v) {
         int[] loc = new int[2];
+        v.getLocationOnScreen(loc);
+        return new Rect(loc[0], loc[1], loc[0] + v.getWidth(), loc[1] + v.getHeight());
+    }
+
+    private static boolean isIn(View v, Set<View> set) {
+        View c = v;
+        while (c != null) {
+            if (set.contains(c)) return true;
+            c = c.getParent() instanceof View ? (View) c.getParent() : null;
+        }
+        return false;
+    }
+
+    // ------------------------------------------------------------------ chọn mục
+    /** Các mục chứa điểm chạm (toạ độ màn hình), từ nhỏ nhất đến lớn nhất. */
+    List<Target> candidatesAt(float sx, float sy) {
+        List<Target> out = new ArrayList<>();
+        final Map<Target, Long> area = new HashMap<>();
         for (Map.Entry<String, View> e : editViews.entrySet()) {
             View v = e.getValue();
             if (!v.isShown()) continue;
-            v.getLocationOnScreen(loc);
-            String key = e.getKey();
-            String label = key.startsWith("p:") ? "Mục không tên · " + v.getClass().getSimpleName() : LockLabels.shortLabel(key);
-            out.add(new StockInfo(key, label, loc[0], loc[1], loc[0] + v.getWidth(), loc[1] + v.getHeight()));
+            Rect r = rectOf(v);
+            if (r.contains((int) sx, (int) sy)) {
+                String key = e.getKey();
+                String label = key.startsWith("p:") ? "Mục không tên · " + v.getClass().getSimpleName() : LockLabels.shortLabel(key);
+                Target t = new Target(key, label, v);
+                out.add(t);
+                area.put(t, (long) r.width() * r.height());
+            }
         }
+        Collections.sort(out, new Comparator<Target>() {
+            @Override public int compare(Target a, Target b) { return Long.compare(area.get(a), area.get(b)); }
+        });
         return out;
     }
 
-    /** Mục nhỏ nhất chứa điểm chạm (toạ độ màn hình). */
-    String hitStock(float sx, float sy) {
-        String best = null;
-        long bestArea = Long.MAX_VALUE;
-        int[] loc = new int[2];
-        for (Map.Entry<String, View> e : editViews.entrySet()) {
-            View v = e.getValue();
-            if (!v.isShown()) continue;
-            v.getLocationOnScreen(loc);
-            if (sx >= loc[0] && sx <= loc[0] + v.getWidth() && sy >= loc[1] && sy <= loc[1] + v.getHeight()) {
-                long area = (long) v.getWidth() * v.getHeight();
-                if (area < bestArea) { bestArea = area; best = e.getKey(); }
-            }
+    /** Tìm các view nằm trọn trong khung của mục (chữ, biểu tượng trên một nền mờ...) để di chuyển cùng. */
+    void prepare(Target t) {
+        if (t.prepared) return;
+        t.prepared = true;
+        Rect frame = rectOf(t.view);
+        int pad = Math.round(8 * density());
+        frame.inset(-pad, -pad);
+        Set<View> anc = new HashSet<>();
+        View c = t.view;
+        while (c.getParent() instanceof View) {
+            c = (View) c.getParent();
+            anc.add(c);
         }
-        return best;
+        collectMembers(root, frame, t.view, anc, t.memberViews, 0);
+        for (View m : t.memberViews) {
+            String k = keyFor(m);
+            t.memberKeys.add(k);
+            if (k.startsWith("p:")) needPaths = true;
+        }
     }
 
-    void beginDrag(String key) {
-        View v = editViews.get(key);
-        if (v != null) found.put(key, v);
-        float[] w = want.get(key);
-        dragBase = w == null ? new float[]{0f, 0f} : w.clone();
-        if (w == null) want.put(key, new float[]{0f, 0f});
+    private void collectMembers(View v, Rect frame, View leader, Set<View> anc, List<View> out, int depth) {
+        if (depth > 14 || v == layer || v == leader || v.getVisibility() != View.VISIBLE) return;
+        if (!anc.contains(v)) {                                    // tổ tiên của mục thì chỉ duyệt tiếp các con
+            int w = v.getWidth(), h = v.getHeight();
+            if (w > 0 && h > 0 && v.getAlpha() > 0f) {
+                Rect r = rectOf(v);
+                if (frame.contains(r)) { out.add(v); return; }     // lấy khối ngoài cùng, không lấy con cháu của nó
+            }
+        }
+        if (v instanceof ViewGroup) {
+            ViewGroup g = (ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) collectMembers(g.getChildAt(i), frame, leader, anc, out, depth + 1);
+        }
+    }
+
+    // ------------------------------------------------------------------ kéo
+    void beginDrag(Target t) {
+        prepare(t);
+        float[] off = want.get(t.key);
+        if (off == null) { off = new float[]{0f, 0f}; want.put(t.key, off); }
+        dragBase = off.clone();
+        register(t, off);
         on = true;
     }
 
-    void dragStock(String key, float dx, float dy) {
-        float[] w = want.get(key);
-        if (w == null || dragBase == null) return;
-        w[0] = dragBase[0] + dx;
-        w[1] = dragBase[1] + dy;
+    private void register(Target t, float[] off) {
+        found.put(t.key, t.view);
+        for (int i = 0; i < t.memberKeys.size(); i++) {
+            want.put(t.memberKeys.get(i), off);                   // cùng một mảng: chủ dịch bao nhiêu, thành viên dịch bấy nhiêu
+            found.put(t.memberKeys.get(i), t.memberViews.get(i));
+        }
+        leaders.add(t.key);
+        groups.put(t.key, new ArrayList<>(t.memberKeys));
+    }
+
+    void dragStock(Target t, float dx, float dy) {
+        float[] off = want.get(t.key);
+        if (off == null || dragBase == null) return;
+        off[0] = dragBase[0] + dx;
+        off[1] = dragBase[1] + dy;
         applyOffsets();
     }
 
-    /** Lưu một lần duy nhất: độ dịch (dp), danh sách mục đã chỉnh và bật tính năng. */
-    void endDrag(String key) {
-        float[] w = want.get(key);
-        if (w == null) return;
-        float d = density();
-        StringBuilder keys = new StringBuilder();
-        for (String k : want.keySet()) {
-            if (keys.length() > 0) keys.append(',');
-            keys.append(k);
+    /**
+     * Đẩy các mục có sẵn đang chồng lên vùng D (toạ độ màn hình) ra xa theo chiều dọc (cả khối đi kèm).
+     * Mục nằm trọn trong D (thành viên) hoặc chứa D (khung nền) thì bỏ qua. Trả về các khoá "chủ" đã đổi.
+     */
+    Set<String> avoidOverlap(Rect D, Target moved, int screenH) {
+        Set<String> changed = new LinkedHashSet<>();
+        int gap = Math.round(8 * density());
+        Set<View> skip = new HashSet<>();
+        if (moved != null) { skip.add(moved.view); skip.addAll(moved.memberViews); }
+        long dArea = (long) D.width() * D.height();
+        for (int pass = 0; pass < 2; pass++) {
+            List<Target> cs = new ArrayList<>();
+            final Map<Target, Long> area = new HashMap<>();
+            for (Map.Entry<String, View> e : editViews.entrySet()) {
+                View v = e.getValue();
+                if (!v.isShown() || isIn(v, skip)) continue;
+                Rect r = rectOf(v);
+                long ar = (long) r.width() * r.height();
+                if (ar <= 0) continue;
+                Rect inter = new Rect(r);
+                if (!inter.intersect(D)) continue;
+                long ia = (long) inter.width() * inter.height();
+                if (ia >= 0.8 * ar) continue;                      // nằm trong vùng vừa thả
+                if (dArea > 0 && ia >= 0.8 * dArea) continue;      // vùng vừa thả nằm trong mục này (khung chứa)
+                Target t = new Target(e.getKey(), "", v);
+                cs.add(t);
+                area.put(t, ar);
+            }
+            Collections.sort(cs, new Comparator<Target>() {        // khung lớn trước, các mục nhỏ bên trong sẽ đi theo
+                @Override public int compare(Target a, Target b) { return Long.compare(area.get(b), area.get(a)); }
+            });
+            Set<View> covered = new HashSet<>();
+            boolean any = false;
+            for (Target t : cs) {
+                if (isIn(t.view, covered)) continue;
+                prepare(t);
+                Rect r = rectOf(t.view);
+                int dy;
+                if (r.centerY() >= D.centerY()) {
+                    dy = D.bottom + gap - r.top;
+                    if (r.bottom + dy > screenH) dy = -(r.bottom + gap - D.top);
+                } else {
+                    dy = -(r.bottom + gap - D.top);
+                    if (r.top + dy < 0) dy = D.bottom + gap - r.top;
+                }
+                if (r.top + dy < 0 || r.bottom + dy > screenH) continue;
+                float[] off = want.get(t.key);
+                if (off == null) { off = new float[]{0f, 0f}; want.put(t.key, off); }
+                off[1] += dy;
+                register(t, off);
+                covered.add(t.view);
+                covered.addAll(t.memberViews);
+                changed.add(t.key);
+                any = true;
+            }
+            if (!any) break;
+            applyOffsets();
         }
+        on = true;
+        return changed;
+    }
+
+    void reset(Target t) {
+        float[] off = want.get(t.key);
+        if (off == null) return;
+        off[0] = 0f;
+        off[1] = 0f;
+        applyOffsets();
+        Set<String> one = new LinkedHashSet<>();
+        one.add(t.key);
+        commit(one);
+    }
+
+    private static String join(Collection<String> c) {
+        StringBuilder sb = new StringBuilder();
+        if (c != null) for (String s : c) {
+            if (sb.length() > 0) sb.append(',');
+            sb.append(s);
+        }
+        return sb.toString();
+    }
+
+    /** Lưu một lần duy nhất: độ dịch (dp), nhóm đi kèm, danh sách mục đã chỉnh và bật tính năng. */
+    void commit(Collection<String> changedLeaders) {
+        if (changedLeaders == null || changedLeaders.isEmpty()) return;
+        float d = density();
         Bundle kv = new Bundle();
-        kv.putString("ls_dx_" + key, String.valueOf(Math.round(w[0] / d)));
-        kv.putString("ls_dy_" + key, String.valueOf(Math.round(w[1] / d)));
-        kv.putString(Config.LS_SELECTED, keys.toString());
+        for (String k : changedLeaders) {
+            float[] w = want.get(k);
+            if (w == null) continue;
+            kv.putString("ls_dx_" + k, String.valueOf(Math.round(w[0] / d)));
+            kv.putString("ls_dy_" + k, String.valueOf(Math.round(w[1] / d)));
+            kv.putString("ls_grp_" + k, join(groups.get(k)));
+        }
+        kv.putString(Config.LS_SELECTED, join(leaders));
         kv.putString(Config.LS_ENABLED, "true");
         SysUiHook.setPrefs(root.getContext(), kv);
     }

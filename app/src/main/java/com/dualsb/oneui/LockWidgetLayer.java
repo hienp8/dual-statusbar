@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
@@ -70,12 +71,10 @@ final class LockWidgetLayer extends FrameLayout {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Rect doneRect = new Rect();
 
-    // kéo thả
+    // chế độ chỉnh
     private float downX, downY, rawX0, rawY0, offX, offY;
     private boolean dragging;
-    private Holder dragH;
-    private View dragV;
-    private String dragStock;
+    private final Rect btnSmall = new Rect(), btnBig = new Rect(), btnReset = new Rect();
 
     LockWidgetLayer(LockScreenController owner, Context c) {
         super(c);
@@ -92,6 +91,7 @@ final class LockWidgetLayer extends FrameLayout {
         boolean master = Config.getBool(b, Config.ENABLED);
         enabled = master && Config.getBool(b, Config.LW_ENABLED);
         editing = enabled && Config.getBool(b, Config.LW_EDIT);
+        if (!editing) { sel = null; armed = false; dragging = false; cands = new ArrayList<>(); }
         String json = Config.getString(b, Config.LW_ITEMS);
         String stamps = stampsOf(b, json);
         String sig = json + "|" + stamps;
@@ -384,37 +384,70 @@ final class LockWidgetLayer extends FrameLayout {
         }
     }
 
-    // ------------------------------------------------------------------ chế độ chỉnh: kéo thả
+    // ------------------------------------------------------------------ chế độ chỉnh: chạm để chọn, kéo để di chuyển
+    /** Một mục có thể chọn: tiện ích của bạn (h) hoặc mục có sẵn của Samsung (t). */
+    private static final class Cand {
+        Holder h;
+        View wv;
+        LockScreenController.Target t;
+    }
+
+    private List<Cand> cands = new ArrayList<>();
+    private int candIdx;
+    private Cand sel;
+    private boolean armed;
+
     @Override public boolean onInterceptTouchEvent(MotionEvent e) {
         return editing && getVisibility() == VISIBLE;
     }
 
-    private View hitWidget(float x, float y) {
+    private Rect screenRect(View v) {
+        int[] l = new int[2];
+        v.getLocationOnScreen(l);
+        return new Rect(l[0], l[1], l[0] + v.getWidth(), l[1] + v.getHeight());
+    }
+
+    private Rect selRect() {
+        if (sel == null) return new Rect();
+        return sel.h != null ? screenRect(sel.wv) : owner.rectOf(sel.t.view);
+    }
+
+    /** Chọn mục dưới ngón tay (toạ độ màn hình): tiện ích của bạn trước, rồi các mục của Samsung từ nhỏ đến lớn. */
+    private void selectAt(float rx, float ry) {
+        cands = new ArrayList<>();
         for (int i = getChildCount() - 1; i >= 0; i--) {
             View c = getChildAt(i);
             Holder h = (Holder) c.getTag();
             if (h == null || h.fullscreen) continue;
-            if (x >= c.getLeft() && x <= c.getRight() && y >= c.getTop() && y <= c.getBottom()) return c;
+            if (screenRect(c).contains((int) rx, (int) ry)) {
+                Cand k = new Cand();
+                k.h = h;
+                k.wv = c;
+                cands.add(k);
+            }
         }
-        return null;
+        for (LockScreenController.Target t : owner.candidatesAt(rx, ry)) {
+            Cand k = new Cand();
+            k.t = t;
+            cands.add(k);
+        }
+        candIdx = 0;
+        sel = cands.isEmpty() ? null : cands.get(0);
+        if (sel != null && sel.t != null) owner.prepare(sel.t);
     }
 
-    private final Runnable startDrag = new Runnable() {
+    private void ladder(int dir) {
+        if (cands.isEmpty()) return;
+        candIdx = Math.max(0, Math.min(cands.size() - 1, candIdx + dir));
+        sel = cands.get(candIdx);
+        if (sel.t != null) owner.prepare(sel.t);
+        invalidate();
+    }
+
+    private final Runnable longSel = new Runnable() {
         @Override public void run() {
-            View v = hitWidget(downX, downY);
-            if (v != null) {
-                dragV = v;
-                dragH = (Holder) v.getTag();
-                offX = (v.getLeft() + v.getRight()) / 2f - downX;
-                offY = (v.getTop() + v.getBottom()) / 2f - downY;
-            } else {
-                String key = owner.hitStock(rawX0, rawY0);
-                if (key == null) return;
-                dragStock = key;
-                owner.beginDrag(key);
-            }
-            dragging = true;
-            performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+            if (!armed) selectAt(rawX0, rawY0);          // nhấn giữ: chọn mục dưới ngón tay rồi kéo luôn
+            if (sel != null) beginDragSel();
             invalidate();
         }
     };
@@ -425,40 +458,115 @@ final class LockWidgetLayer extends FrameLayout {
         switch (e.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
                 downX = e.getX(); downY = e.getY(); rawX0 = e.getRawX(); rawY0 = e.getRawY();
-                dragging = false; dragH = null; dragV = null; dragStock = null;
-                removeCallbacks(startDrag);
-                postDelayed(startDrag, 350);
+                dragging = false;
+                armed = sel != null && selRect().contains((int) rawX0, (int) rawY0);   // chạm vào mục đang chọn: kéo là di chuyển
+                removeCallbacks(longSel);
+                postDelayed(longSel, 380);
                 return true;
             case MotionEvent.ACTION_MOVE:
                 if (!dragging) {
-                    if (Math.hypot(e.getX() - downX, e.getY() - downY) > slop) removeCallbacks(startDrag);
-                    return true;
+                    if (Math.hypot(e.getX() - downX, e.getY() - downY) > slop) {
+                        removeCallbacks(longSel);
+                        if (armed) beginDragSel();
+                    }
+                    if (!dragging) return true;
                 }
-                if (dragH != null) {
-                    float W = Math.max(1, getWidth()), H = Math.max(1, getHeight());
-                    dragH.x = Math.max(0f, Math.min(100f, (e.getX() + offX) / W * 100f));
-                    dragH.y = Math.max(0f, Math.min(100f, (e.getY() + offY) / H * 100f));
-                    requestLayout();
-                } else if (dragStock != null) {
-                    owner.dragStock(dragStock, e.getRawX() - rawX0, e.getRawY() - rawY0);
-                }
-                invalidate();
+                updateDrag(e);
                 return true;
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
-                removeCallbacks(startDrag);
+                removeCallbacks(longSel);
                 if (dragging) {
-                    if (dragH != null) saveItems();
-                    else if (dragStock != null) owner.endDrag(dragStock);
-                } else if (e.getActionMasked() == MotionEvent.ACTION_UP && doneRect.contains((int) e.getX(), (int) e.getY())) {
-                    exitEdit();
+                    drop();
+                } else if (e.getActionMasked() == MotionEvent.ACTION_UP
+                        && Math.hypot(e.getX() - downX, e.getY() - downY) <= slop) {
+                    handleTap(e.getX(), e.getY(), e.getRawX(), e.getRawY());
                 }
-                dragging = false; dragH = null; dragV = null; dragStock = null;
+                dragging = false;
+                armed = false;
                 invalidate();
                 return true;
             default:
                 return true;
         }
+    }
+
+    private void handleTap(float x, float y, float rawX, float rawY) {
+        int xi = (int) x, yi = (int) y;
+        if (doneRect.contains(xi, yi)) { exitEdit(); return; }
+        if (sel != null) {
+            if (btnSmall.contains(xi, yi)) { ladder(-1); return; }
+            if (btnBig.contains(xi, yi)) { ladder(1); return; }
+            if (btnReset.contains(xi, yi)) { if (sel.t != null) owner.reset(sel.t); invalidate(); return; }
+            if (selRect().contains((int) rawX, (int) rawY)) return;      // chạm lại vào mục đang chọn: giữ nguyên
+        }
+        selectAt(rawX, rawY);
+    }
+
+    private void beginDragSel() {
+        if (sel == null) return;
+        if (sel.h != null) {
+            offX = (sel.wv.getLeft() + sel.wv.getRight()) / 2f - downX;
+            offY = (sel.wv.getTop() + sel.wv.getBottom()) / 2f - downY;
+        } else {
+            owner.beginDrag(sel.t);
+        }
+        dragging = true;
+        performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+    }
+
+    private void updateDrag(MotionEvent e) {
+        if (sel.h != null) {
+            float W = Math.max(1, getWidth()), H = Math.max(1, getHeight());
+            sel.h.x = Math.max(0f, Math.min(100f, (e.getX() + offX) / W * 100f));
+            sel.h.y = Math.max(0f, Math.min(100f, (e.getY() + offY) / H * 100f));
+            requestLayout();
+        } else {
+            owner.dragStock(sel.t, e.getRawX() - rawX0, e.getRawY() - rawY0);
+        }
+        invalidate();
+    }
+
+    /** Thả: đẩy các mục khác đang chồng lên ra xa rồi lưu tất cả một lần. */
+    private void drop() {
+        Rect D = selRect();
+        int H = getResources().getDisplayMetrics().heightPixels;
+        Set<String> changed = owner.avoidOverlap(D, sel.t, H);
+        boolean widgetsMoved = pushWidgets(D, sel.wv, H);
+        if (sel.t != null) changed.add(sel.t.key);
+        if (sel.h != null || widgetsMoved) saveItems();
+        owner.commit(changed);
+    }
+
+    private boolean pushWidgets(Rect D, View except, int screenH) {
+        boolean any = false;
+        int gap = Math.round(8 * density);
+        long dArea = (long) D.width() * D.height();
+        for (int i = 0; i < getChildCount(); i++) {
+            View c = getChildAt(i);
+            Holder h = (Holder) c.getTag();
+            if (h == null || h.fullscreen || c == except) continue;
+            Rect r = screenRect(c);
+            long ar = (long) r.width() * r.height();
+            if (ar <= 0) continue;
+            Rect inter = new Rect(r);
+            if (!inter.intersect(D)) continue;
+            long ia = (long) inter.width() * inter.height();
+            if (ia >= 0.8 * ar || (dArea > 0 && ia >= 0.8 * dArea)) continue;
+            int dy;
+            if (r.centerY() >= D.centerY()) {
+                dy = D.bottom + gap - r.top;
+                if (r.bottom + dy > screenH) dy = -(r.bottom + gap - D.top);
+            } else {
+                dy = -(r.bottom + gap - D.top);
+                if (r.top + dy < 0) dy = D.bottom + gap - r.top;
+            }
+            if (r.top + dy < 0 || r.bottom + dy > screenH) continue;
+            h.y = Math.max(0f, Math.min(100f, h.y + dy / (float) Math.max(1, getHeight()) * 100f));
+            any = true;
+        }
+        if (any) requestLayout();
+        return any;
     }
 
     private void saveItems() {
@@ -479,6 +587,7 @@ final class LockWidgetLayer extends FrameLayout {
 
     private void exitEdit() {
         editing = false;
+        sel = null;
         owner.setEditing(false);
         Bundle kv = new Bundle();
         kv.putString(Config.LW_EDIT, "false");
@@ -486,66 +595,98 @@ final class LockWidgetLayer extends FrameLayout {
         invalidate();
     }
 
-    // ------------------------------------------------------------------ vẽ khung + nhãn khi đang chỉnh
+    // ------------------------------------------------------------------ vẽ: chỉ khung của mục đang chọn
+    private static String typeName(String t) {
+        switch (t) {
+            case "image": return "Ảnh / GIF";
+            case "text": return "Chữ";
+            case "clock_d": return "Đồng hồ số";
+            case "clock_a": return "Đồng hồ analog";
+            case "app": return "Ứng dụng";
+            default: return t;
+        }
+    }
+
     private void label(Canvas c, String text, float x, float y, int bg) {
         float tw = paint.measureText(text);
         float th = paint.getTextSize();
         float pad = 3 * density;
+        float top = Math.max(y, th + pad);
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(bg);
-        c.drawRect(x, y - th - pad, x + tw + 2 * pad, y + pad / 2, paint);
+        c.drawRect(x, top - th - pad, x + tw + 2 * pad, top + pad / 2, paint);
         paint.setColor(Color.BLACK);
-        c.drawText(text, x + pad, y - pad / 2, paint);
+        c.drawText(text, x + pad, top - pad / 2, paint);
+    }
+
+    private void drawBtn(Canvas c, Rect r, String text, int bg) {
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(bg);
+        c.drawRoundRect(new RectF(r), 21 * density, 21 * density, paint);
+        paint.setColor(Color.WHITE);
+        paint.setTextSize(13 * density);
+        float tw = paint.measureText(text);
+        c.drawText(text, r.centerX() - tw / 2f, r.centerY() + 5 * density, paint);
     }
 
     @Override protected void dispatchDraw(Canvas c) {
         super.dispatchDraw(c);
         if (!editing) return;
-        paint.setTextSize(11 * density);
-        paint.setTypeface(Typeface.DEFAULT_BOLD);
-        paint.setPathEffect(null);
-
-        // mục có sẵn của Samsung (viền vàng)
+        int W = getWidth(), H = getHeight();
         int[] loc = new int[2];
         getLocationOnScreen(loc);
-        paint.setStrokeWidth(1.5f * density);
-        for (LockScreenController.StockInfo si : owner.stockEntries()) {
-            RectF r = new RectF(si.l - loc[0], si.t - loc[1], si.r - loc[0], si.b - loc[1]);
+        paint.setTypeface(Typeface.DEFAULT_BOLD);
+        paint.setTextSize(11 * density);
+        paint.setPathEffect(null);
+
+        // chỉ vẽ khung quanh mục đang chọn
+        if (sel != null) {
+            Rect r = selRect();
+            r.offset(-loc[0], -loc[1]);
+            int col = sel.h != null ? 0xFF00E5FF : 0xFFFFC107;
             paint.setStyle(Paint.Style.STROKE);
-            paint.setColor(0xFFFFC107);
-            paint.setPathEffect(new DashPathEffect(new float[]{8 * density, 5 * density}, 0));
+            paint.setStrokeWidth(2.5f * density);
+            paint.setColor(col);
+            paint.setPathEffect(new DashPathEffect(new float[]{10 * density, 6 * density}, 0));
             c.drawRect(r, paint);
             paint.setPathEffect(null);
-            label(c, si.label, r.left, r.top + 12 * density, 0xDDFFC107);
+            String lab = sel.h != null ? "Tiện ích: " + typeName(sel.h.type)
+                    : sel.t.label + (sel.t.memberViews.isEmpty() ? "" : " + " + sel.t.memberViews.size() + " mục đi kèm");
+            label(c, lab, r.left, r.top, col);
         }
-        // tiện ích của bạn (viền xanh)
-        for (int i = 0; i < getChildCount(); i++) {
-            View v = getChildAt(i);
-            Holder h = (Holder) v.getTag();
-            if (h == null || h.fullscreen) continue;
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setColor(0xFF00E5FF);
-            paint.setStrokeWidth(2f * density);
-            c.drawRect(v.getLeft(), v.getTop(), v.getRight(), v.getBottom(), paint);
-            label(c, "Tiện ích: " + h.type, v.getLeft(), v.getTop(), 0xDD00E5FF);
+
+        // nút Xong
+        doneRect.set(W / 2 - Math.round(56 * density), Math.round(70 * density),
+                W / 2 + Math.round(56 * density), Math.round(112 * density));
+        drawBtn(c, doneRect, "Xong", 0xFF00A86B);
+
+        // nút chọn khung khi đã có mục được chọn
+        if (sel != null) {
+            int bw = Math.round(104 * density), bh = Math.round(42 * density), gap = Math.round(8 * density);
+            int left = (W - (3 * bw + 2 * gap)) / 2, top = H - Math.round(150 * density);
+            btnSmall.set(left, top, left + bw, top + bh);
+            btnBig.set(left + bw + gap, top, left + 2 * bw + gap, top + bh);
+            btnReset.set(left + 2 * (bw + gap), top, left + 3 * bw + 2 * gap, top + bh);
+            drawBtn(c, btnSmall, "‹ Nhỏ hơn", 0xFF455A64);
+            drawBtn(c, btnBig, "Lớn hơn ›", 0xFF455A64);
+            drawBtn(c, btnReset, sel.t != null ? "Hoàn lại" : "—", sel.t != null ? 0xFFB26A00 : 0x66455A64);
+        } else {
+            btnSmall.setEmpty();
+            btnBig.setEmpty();
+            btnReset.setEmpty();
         }
-        // nút Xong + hướng dẫn
-        int w = getWidth();
-        doneRect.set(w / 2 - Math.round(64 * density), Math.round(70 * density), w / 2 + Math.round(64 * density), Math.round(114 * density));
-        paint.setStyle(Paint.Style.FILL);
-        paint.setColor(0xFF00A86B);
-        c.drawRoundRect(new RectF(doneRect), 22 * density, 22 * density, paint);
-        paint.setColor(Color.WHITE);
-        paint.setTextSize(16 * density);
-        float tw = paint.measureText("Xong");
-        c.drawText("Xong", doneRect.centerX() - tw / 2f, doneRect.centerY() + 6 * density, paint);
+
+        // hướng dẫn
         paint.setTextSize(11 * density);
-        String hint = "Nhấn giữ một mục rồi kéo • Viền xanh: tiện ích của bạn • Viền vàng: mục của Samsung";
+        String hint = sel == null
+                ? "Chạm vào một mục để chọn rồi kéo • Hoặc nhấn giữ một mục để kéo luôn"
+                : "Kéo mục đang chọn • Chưa đúng khung? Bấm Nhỏ hơn / Lớn hơn • Chạm chỗ khác để chọn mục khác";
         float hw = paint.measureText(hint);
+        paint.setStyle(Paint.Style.FILL);
         paint.setColor(0xCC000000);
-        c.drawRect(w / 2f - hw / 2f - 6 * density, doneRect.bottom + 6 * density, w / 2f + hw / 2f + 6 * density,
+        c.drawRect(W / 2f - hw / 2f - 6 * density, doneRect.bottom + 6 * density, W / 2f + hw / 2f + 6 * density,
                 doneRect.bottom + 26 * density, paint);
         paint.setColor(Color.WHITE);
-        c.drawText(hint, w / 2f - hw / 2f, doneRect.bottom + 21 * density, paint);
+        c.drawText(hint, W / 2f - hw / 2f, doneRect.bottom + 21 * density, paint);
     }
 }

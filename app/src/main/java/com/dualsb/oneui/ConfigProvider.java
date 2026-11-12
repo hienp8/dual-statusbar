@@ -102,7 +102,7 @@ public class ConfigProvider extends ContentProvider {
     private static boolean allowed(String key) {
         return key.equals("lw_edit") || key.equals("lw_enabled") || key.equals("lw_items")
                 || key.equals("ls_selected") || key.equals("ls_enabled")
-                || key.startsWith("ls_dx_") || key.startsWith("ls_dy_");
+                || key.startsWith("ls_dx_") || key.startsWith("ls_dy_") || key.startsWith("ls_grp_");
     }
 
     @Override public Cursor query(Uri u, String[] p, String s, String[] a, String o) { return null; }
