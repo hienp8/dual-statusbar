@@ -282,12 +282,21 @@ public class SettingsActivity extends AppCompatActivity
             return getPreferenceManager().getSharedPreferences();
         }
 
+        /** Những khoá chỉ là trạng thái tạm / theo máy: không sao lưu, không khôi phục. */
+        private static final Set<String> TRANSIENT = new HashSet<>(Arrays.asList(
+                "lw_edit", "edge_preview", "edge_preview_ts", "known_slots", "known_ls"));
+
+        private static boolean isWidgetImage(String base) {
+            return base.matches("lw_[a-z0-9]{1,16}");
+        }
+
         private void exportBackup(Uri uri) {
             Context c = requireContext();
             try (OutputStream os = c.getContentResolver().openOutputStream(uri);
                  ZipOutputStream z = new ZipOutputStream(os)) {
                 JSONObject o = new JSONObject();
                 for (Map.Entry<String, ?> e : prefs().getAll().entrySet()) {
+                    if (TRANSIENT.contains(e.getKey())) continue;
                     Object v = e.getValue();
                     if (v instanceof Set) {
                         JSONArray a = new JSONArray();
@@ -300,16 +309,21 @@ public class SettingsActivity extends AppCompatActivity
                 z.putNextEntry(new ZipEntry("settings.json"));
                 z.write(o.toString(2).getBytes("UTF-8"));
                 z.closeEntry();
-                for (String n : Config.IMAGES) {
-                    File f = new File(Storage.dir(c), n + ".png");
-                    if (!f.exists()) continue;
-                    z.putNextEntry(new ZipEntry(n + ".png"));
-                    try (FileInputStream in = new FileInputStream(f)) {
-                        byte[] buf = new byte[8192];
-                        int r;
-                        while ((r = in.read(buf)) > 0) z.write(buf, 0, r);
+                File[] files = Storage.dir(c).listFiles();                 // ảnh cố định + ảnh của các tiện ích màn hình khóa
+                if (files != null) {
+                    for (File f : files) {
+                        String fn = f.getName();
+                        if (!fn.endsWith(".png")) continue;
+                        String base = fn.substring(0, fn.length() - 4);
+                        if (!Arrays.asList(Config.IMAGES).contains(base) && !isWidgetImage(base)) continue;
+                        z.putNextEntry(new ZipEntry(fn));
+                        try (FileInputStream in = new FileInputStream(f)) {
+                            byte[] buf = new byte[8192];
+                            int r;
+                            while ((r = in.read(buf)) > 0) z.write(buf, 0, r);
+                        }
+                        z.closeEntry();
                     }
-                    z.closeEntry();
                 }
                 z.finish();
                 Toast.makeText(c, "Đã sao lưu", Toast.LENGTH_SHORT).show();
@@ -336,42 +350,58 @@ public class SettingsActivity extends AppCompatActivity
                         json = new JSONObject(new String(bos.toByteArray(), "UTF-8"));
                     } else if (name.endsWith(".png")) {
                         String base = name.substring(0, name.length() - 4);
-                        if (known.contains(base)) imgs.put(base, bos.toByteArray());
+                        if (known.contains(base) || isWidgetImage(base)) imgs.put(base, bos.toByteArray());
                     }
                 }
                 if (json == null) throw new IOException("Không phải file sao lưu hợp lệ");
 
-                SharedPreferences.Editor ed = prefs().edit();
+                // ghi ảnh trước, rồi ghi cài đặt một lần duy nhất (không nháy từng khoá, không xoá ảnh đang có)
+                for (Map.Entry<String, byte[]> im : imgs.entrySet()) {
+                    File f = new File(Storage.dir(c), im.getKey() + ".png");
+                    try (FileOutputStream out = new FileOutputStream(f)) { out.write(im.getValue()); }
+                    f.setLastModified(System.currentTimeMillis());
+                }
+
+                SharedPreferences sp = prefs();
+                Map<String, ?> cur = sp.getAll();
+                sp.unregisterOnSharedPreferenceChangeListener(this);
+                SharedPreferences.Editor ed = sp.edit();
                 Iterator<String> it = json.keys();
                 while (it.hasNext()) {
                     String k = it.next();
+                    if (TRANSIENT.contains(k)) continue;
                     Object v = json.get(k);
-                    if (v instanceof Boolean) ed.putBoolean(k, (Boolean) v);
-                    else if (v instanceof Number) ed.putInt(k, ((Number) v).intValue());
-                    else if (v instanceof String) ed.putString(k, (String) v);
-                    else if (v instanceof JSONArray) {
+                    Object old = cur.get(k);                           // giữ đúng kiểu dữ liệu của cài đặt hiện có
+                    if (v instanceof Boolean) {
+                        ed.putBoolean(k, (Boolean) v);
+                    } else if (v instanceof Number) {
+                        Number nv = (Number) v;
+                        if (old instanceof Long) ed.putLong(k, nv.longValue());
+                        else if (old instanceof String) ed.putString(k, String.valueOf(nv.longValue()));
+                        else ed.putInt(k, nv.intValue());
+                    } else if (v instanceof String) {
+                        String sv = (String) v;
+                        if (old instanceof Integer) {
+                            try { ed.putInt(k, Integer.parseInt(sv.trim())); } catch (NumberFormatException ex) { ed.putString(k, sv); }
+                        } else {
+                            ed.putString(k, sv);
+                        }
+                    } else if (v instanceof JSONArray) {
                         Set<String> set = new HashSet<>();
                         JSONArray a = (JSONArray) v;
                         for (int i = 0; i < a.length(); i++) set.add(a.getString(i));
                         ed.putStringSet(k, set);
                     }
                 }
-                ed.apply();
-
-                for (String n : Config.IMAGES) {
-                    File f = new File(Storage.dir(c), n + ".png");
-                    byte[] d = imgs.get(n);
-                    if (d != null) {
-                        try (FileOutputStream out = new FileOutputStream(f)) { out.write(d); }
-                        f.setLastModified(System.currentTimeMillis());
-                    } else {
-                        f.delete();
-                    }
-                }
+                ed.putBoolean("lw_edit", false);                       // khôi phục xong không tự bật chế độ chỉnh
+                boolean ok = ed.commit();                              // ghi ngay xuống đĩa, không để bị mất khi tiến trình bị đóng băng
+                sp.registerOnSharedPreferenceChangeListener(this);
+                if (!ok) throw new IOException("Không ghi được cài đặt");
                 notifyChanged(c);
                 Toast.makeText(c, "Đã khôi phục", Toast.LENGTH_SHORT).show();
                 requireActivity().recreate();
             } catch (Exception e) {
+                try { prefs().registerOnSharedPreferenceChangeListener(this); } catch (Throwable ignored) {}
                 Toast.makeText(c, "Khôi phục lỗi: " + e.getMessage(), Toast.LENGTH_LONG).show();
             }
         }

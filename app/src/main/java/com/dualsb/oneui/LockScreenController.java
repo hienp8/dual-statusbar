@@ -55,6 +55,9 @@ final class LockScreenController {
     private long lastScan;
     private int scans, dumps, lastDumpSeen;
     private float[] dragBase;
+    private final Map<ViewGroup, boolean[]> clipOrig = new HashMap<>();   // khung cha -> cờ cắt xén gốc
+    private final Map<ViewGroup, int[]> clipRef = new HashMap<>();        // số view đang dịch dựa vào khung này
+    private boolean clipLogged;
     private LockWidgetLayer layer;
     private static final Map<Integer, String> NAMES = new HashMap<>();
 
@@ -86,14 +89,14 @@ final class LockScreenController {
         leaders.clear();
         groups.clear();
         needPaths = edit;
-        if (on) {
+        {
             for (String id : Config.getString(b, Config.LS_SELECTED).split(",")) {
                 id = id.trim();
                 if (id.isEmpty()) continue;
                 float[] off = new float[]{Config.getInt(b, "ls_dx_" + id) * d, Config.getInt(b, "ls_dy_" + id) * d};
                 want.put(id, off);
                 leaders.add(id);
-                if (id.startsWith("p:")) needPaths = true;
+                if (on && id.startsWith("p:")) needPaths = true;
                 String g = Config.getString(b, "ls_grp_" + id);
                 if (!g.isEmpty()) {
                     List<String> mem = new ArrayList<>();
@@ -102,7 +105,7 @@ final class LockScreenController {
                         if (mk.isEmpty()) continue;
                         mem.add(mk);
                         want.put(mk, off);                                  // thành viên dùng chung độ dịch với "chủ"
-                        if (mk.startsWith("p:")) needPaths = true;
+                        if (on && mk.startsWith("p:")) needPaths = true;
                     }
                     groups.put(id, mem);
                 }
@@ -113,6 +116,52 @@ final class LockScreenController {
         lastScan = 0;
         scan();
         applyOffsets();
+    }
+
+    /**
+     * Một view bị dịch ra ngoài biên của khung cha sẽ bị khung cha cắt mất (nên chỉ kéo lên được, kéo xuống thì "cụt").
+     * Tắt cắt xén của mọi khung cha trong lúc view còn đang bị dịch, trả lại khi thôi dịch.
+     */
+    private void retainClip(View v) {
+        View c = v;
+        int n = 0;
+        while (c.getParent() instanceof ViewGroup) {
+            ViewGroup p = (ViewGroup) c.getParent();
+            int[] ref = clipRef.get(p);
+            if (ref == null) {
+                clipOrig.put(p, new boolean[]{p.getClipChildren(), p.getClipToPadding(), p.getClipToOutline()});
+                clipRef.put(p, new int[]{1});
+                p.setClipChildren(false);
+                p.setClipToPadding(false);
+                p.setClipToOutline(false);
+                n++;
+            } else {
+                ref[0]++;
+            }
+            c = p;
+        }
+        if (n > 0 && !clipLogged) {
+            clipLogged = true;
+            XposedBridge.log(SysUiHook.TAG + "màn hình khóa: đã tắt cắt xén của " + n + " khung cha để mục kéo ra ngoài biên vẫn hiện");
+        }
+    }
+
+    private void releaseClip(View v) {
+        View c = v;
+        while (c.getParent() instanceof ViewGroup) {
+            ViewGroup p = (ViewGroup) c.getParent();
+            int[] ref = clipRef.get(p);
+            if (ref != null && --ref[0] <= 0) {
+                boolean[] o = clipOrig.remove(p);
+                clipRef.remove(p);
+                if (o != null) {
+                    p.setClipChildren(o[0]);
+                    p.setClipToPadding(o[1]);
+                    p.setClipToOutline(o[2]);
+                }
+            }
+            c = p;
+        }
     }
 
     private void createLayer() {
@@ -188,8 +237,15 @@ final class LockScreenController {
         }
         if (v instanceof ViewGroup) {
             ViewGroup g = (ViewGroup) v;
-            for (int i = 0; i < g.getChildCount(); i++)
-                walk(g.getChildAt(i), depth + 1, seen, path.isEmpty() ? String.valueOf(i) : path + "." + i);
+            Map<String, Integer> cnt = new HashMap<>();
+            for (int i = 0; i < g.getChildCount(); i++) {
+                View ch = g.getChildAt(i);
+                String cn = cls(ch);
+                Integer k = cnt.get(cn);
+                int idx = k == null ? 0 : k;
+                cnt.put(cn, idx + 1);
+                walk(ch, depth + 1, seen, path + "/" + cn + "@" + idx);
+            }
         }
     }
 
@@ -220,13 +276,25 @@ final class LockScreenController {
     }
 
     // ------------------------------------------------------------------ khoá của một view
+    private static String cls(View v) {
+        String n = v.getClass().getSimpleName();
+        return n.isEmpty() ? v.getClass().getName() : n;
+    }
+
+    /** Đường dẫn bền: tên lớp + thứ tự trong các view cùng lớp (không đổi khi có view khác lớp xuất hiện / biến mất). */
     private String pathOf(View v) {
         StringBuilder sb = new StringBuilder();
         View c = v;
         while (c != root && c.getParent() instanceof ViewGroup) {
             ViewGroup p = (ViewGroup) c.getParent();
-            int i = p.indexOfChild(c);
-            sb.insert(0, sb.length() == 0 ? String.valueOf(i) : i + ".");
+            String cn = cls(c);
+            int idx = 0;
+            for (int i = 0; i < p.getChildCount(); i++) {
+                View sib = p.getChildAt(i);
+                if (sib == c) break;
+                if (cls(sib).equals(cn)) idx++;
+            }
+            sb.insert(0, "/" + cn + "@" + idx);
             c = p;
         }
         return sb.toString();
@@ -455,6 +523,7 @@ final class LockScreenController {
             if (s == null) {
                 s = new float[]{cx, cy, Float.NaN, Float.NaN};
                 st.put(v, s);
+                retainClip(v);
             } else {
                 if (cx != s[2]) s[0] = cx;              // Samsung (hoạt ảnh) vừa đổi giá trị: lấy làm nền mới
                 if (cy != s[3]) s[1] = cy;
@@ -469,6 +538,7 @@ final class LockScreenController {
             if (desired.containsKey(v)) continue;
             float[] s = st.remove(v);
             if (s == null) continue;
+            releaseClip(v);
             if (v.getTranslationX() == s[2]) v.setTranslationX(s[0]);
             if (v.getTranslationY() == s[3]) v.setTranslationY(s[1]);
         }

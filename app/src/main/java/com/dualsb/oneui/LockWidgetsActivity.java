@@ -52,7 +52,6 @@ public class LockWidgetsActivity extends AppCompatActivity {
             "Dọn RAM (tối ưu hệ thống)", "Tăng âm lượng", "Giảm âm lượng", "Tắt / bật tiếng", "Bật / tắt đèn pin"};
     private static final int[] ACT_VALUES = {0, 100, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
 
-    private SharedPreferences sp;
     private final List<JSONObject> items = new ArrayList<>();
     private final List<String> labels = new ArrayList<>();
     private ArrayAdapter<String> adapter;
@@ -65,7 +64,6 @@ public class LockWidgetsActivity extends AppCompatActivity {
     protected void onCreate(Bundle s) {
         super.onCreate(s);
         setTitle("Tiện ích màn hình khóa");
-        sp = Storage.prefs(this);
         picker = registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
             if (uri != null && pendingImageId != null) saveImage(uri, pendingImageId);
         });
@@ -94,13 +92,20 @@ public class LockWidgetsActivity extends AppCompatActivity {
         refresh();
     }
 
+    /** Vị trí có thể vừa được kéo thả trên màn hình khóa (SystemUI ghi lại): luôn đọc lại, tránh ghi đè bằng bản cũ. */
+    @Override protected void onResume() {
+        super.onResume();
+        load();
+        refresh();
+    }
+
     private int dp(int v) { return Math.round(v * getResources().getDisplayMetrics().density); }
 
     // ------------------------------------------------------------------ dữ liệu
     private void load() {
         items.clear();
         try {
-            JSONArray a = new JSONArray(sp.getString(Config.LW_ITEMS, "[]"));
+            JSONArray a = new JSONArray(Storage.prefs(this).getString(Config.LW_ITEMS, "[]"));
             for (int i = 0; i < a.length(); i++) {
                 JSONObject o = a.optJSONObject(i);
                 if (o != null) items.add(o);
@@ -111,7 +116,7 @@ public class LockWidgetsActivity extends AppCompatActivity {
     private void save() {
         JSONArray a = new JSONArray();
         for (JSONObject o : items) a.put(o);
-        sp.edit().putString(Config.LW_ITEMS, a.toString()).apply();
+        Storage.prefs(this).edit().putString(Config.LW_ITEMS, a.toString()).apply();
         getContentResolver().notifyChange(Uri.parse(Config.CONFIG_URI), null);
     }
 
