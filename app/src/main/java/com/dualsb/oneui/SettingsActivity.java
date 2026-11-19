@@ -50,9 +50,8 @@ public class SettingsActivity extends AppCompatActivity
     @Override
     protected void onCreate(Bundle s) {
         super.onCreate(s);
-        Storage.migrate(this);
-        PreferenceManager.setDefaultValues(Storage.dp(this), Storage.prefsName(this), Context.MODE_PRIVATE,
-                R.xml.prefs, false);
+        Storage.init(this);
+        Storage.ensureDefaults(this);
         if (s == null) {
             getSupportFragmentManager().beginTransaction()
                     .replace(android.R.id.content, new SettingsFragment()).commit();
@@ -102,7 +101,8 @@ public class SettingsActivity extends AppCompatActivity
 
         @Override
         public void onCreatePreferences(Bundle b, String rootKey) {
-            getPreferenceManager().setStorageDeviceProtected();   // cùng nơi SystemUI đọc, dùng được ngay sau reboot
+            // Giao diện đọc / ghi thẳng vào đối tượng SharedPreferences duy nhất của Storage (cùng dữ liệu SystemUI đọc)
+            getPreferenceManager().setPreferenceDataStore(new PrefStore(Storage.prefs(requireContext())));
             setPreferencesFromResource(R.xml.prefs, rootKey);
             for (final String n : Config.IMAGES) {
                 Preference pick = findPreference("pick_" + n);
@@ -279,7 +279,7 @@ public class SettingsActivity extends AppCompatActivity
         // ------------------------------------------------------------------ sao lưu / khôi phục
 
         private SharedPreferences prefs() {
-            return getPreferenceManager().getSharedPreferences();
+            return Storage.prefs(requireContext());
         }
 
         /** Những khoá chỉ là trạng thái tạm / theo máy: không sao lưu, không khôi phục. */

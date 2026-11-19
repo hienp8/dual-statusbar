@@ -64,6 +64,7 @@ public class LockWidgetsActivity extends AppCompatActivity {
     protected void onCreate(Bundle s) {
         super.onCreate(s);
         setTitle("Tiện ích màn hình khóa");
+        Storage.init(this);
         picker = registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
             if (uri != null && pendingImageId != null) saveImage(uri, pendingImageId);
         });

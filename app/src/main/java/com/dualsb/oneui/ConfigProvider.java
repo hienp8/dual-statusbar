@@ -19,12 +19,13 @@ import java.util.Set;
 /** SystemUI đọc cấu hình + ảnh qua provider này; đồng thời báo lên danh sách biểu tượng đã thấy. */
 public class ConfigProvider extends ContentProvider {
     @Override public boolean onCreate() {
-        try { Storage.migrate(getContext()); } catch (Throwable ignored) {}
+        try { Storage.init(getContext()); } catch (Throwable ignored) {}
         return true;
     }
 
     @Override
     public Bundle call(String method, String arg, Bundle extras) {
+        Storage.init(getContext());
         SharedPreferences sp = Storage.prefs(getContext());
         if ("set_prefs".equals(method)) {                          // SystemUI lưu vị trí sau khi người dùng kéo thả
             if (extras != null) {
