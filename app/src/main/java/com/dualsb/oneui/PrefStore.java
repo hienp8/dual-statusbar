@@ -4,6 +4,7 @@ import android.content.SharedPreferences;
 
 import androidx.preference.PreferenceDataStore;
 
+import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -25,8 +26,14 @@ final class PrefStore extends PreferenceDataStore {
     @Override public String getString(String key, String def) {
         try { return sp.getString(key, def); } catch (ClassCastException e) { return def; }
     }
+    /**
+     * Không bao giờ trả về null: ô chọn nhiều (MultiSelectListPreference) gọi addAll(null) khi khoá chưa có giá trị
+     * và mặc định là null -> văng NullPointerException ngay lúc mở menu.
+     */
     @Override public Set<String> getStringSet(String key, Set<String> def) {
-        try { return sp.getStringSet(key, def); } catch (ClassCastException e) { return def; }
+        Set<String> r;
+        try { r = sp.getStringSet(key, def); } catch (ClassCastException e) { r = def; }
+        return r != null ? new HashSet<String>(r) : new HashSet<String>();
     }
     @Override public int getInt(String key, int def) {
         try { return sp.getInt(key, def); } catch (ClassCastException e) { return def; }

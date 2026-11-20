@@ -101,9 +101,17 @@ public class SettingsActivity extends AppCompatActivity
 
         @Override
         public void onCreatePreferences(Bundle b, String rootKey) {
-            // Giao diện đọc / ghi thẳng vào đối tượng SharedPreferences duy nhất của Storage (cùng dữ liệu SystemUI đọc)
-            getPreferenceManager().setPreferenceDataStore(new PrefStore(Storage.prefs(requireContext())));
-            setPreferencesFromResource(R.xml.prefs, rootKey);
+            try {
+                // Giao diện đọc / ghi thẳng vào đối tượng SharedPreferences duy nhất của Storage (cùng dữ liệu SystemUI đọc)
+                getPreferenceManager().setPreferenceDataStore(new PrefStore(Storage.prefs(requireContext())));
+                setPreferencesFromResource(R.xml.prefs, rootKey);
+            } catch (Throwable t) {
+                // Phương án cuối: dùng kho mặc định của thư viện thay vì để ứng dụng thoát
+                android.util.Log.e("DualSB", "dựng menu bằng kho chung lỗi, chuyển sang kho mặc định", t);
+                getPreferenceManager().setPreferenceDataStore(null);
+                getPreferenceManager().setStorageDeviceProtected();
+                setPreferencesFromResource(R.xml.prefs, rootKey);
+            }
             for (final String n : Config.IMAGES) {
                 Preference pick = findPreference("pick_" + n);
                 if (pick != null) pick.setOnPreferenceClickListener(p -> {
